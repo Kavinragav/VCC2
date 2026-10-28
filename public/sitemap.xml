@@ -1,273 +1,507 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <!-- ===================================================================== -->
+  <!-- 1. HOME PAGE & CORE HIGH-CONVERSION LANDING PAGES                     -->
+  <!-- ===================================================================== -->
   <url>
-    <loc>https://www.vivekanandhasainik.in</loc>
-    <changefreq>weekly</changefreq>
+    <loc>https://www.vivekanandhasainik.in/</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class6-mock-tests-poster.png</image:loc>
+      <image:title>AISSEE Class 6 Super 9 Mock Test Series (₹99) - Vivekanandha Sainik Coaching Center</image:title>
+      <image:caption>1 Free Sample Mock Paper + 9 Full-Length Class 6 AISSEE Mock Papers with Step-by-Step Solutions</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class9-mock-tests-poster.png</image:loc>
+      <image:title>AISSEE Class 9 Super 9 Mock Test Series (₹99) - Vivekanandha Sainik Coaching Center</image:title>
+      <image:caption>1 Free Sample Mock Paper + 9 Full-Length Class 9 AISSEE Mock Papers with Detailed Solutions</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-class6-result-banner.png</image:loc>
+      <image:title>AISSEE 2026 State Toppers &amp; Centum Achievers - Vivekanandha Sainik Coaching Center</image:title>
+      <image:caption>Tamil Nadu #1 Sainik School Coaching Center AISSEE 2026 Results</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/vivekanandha-logo.png</image:loc>
+      <image:title>Vivekanandha Sainik Coaching Center Amaravathinagar Logo</image:title>
+    </image:image>
   </url>
+
+  <!-- ===================================================================== -->
+  <!-- 2. RECENTLY ADDED & UPDATED FLAGSHIP PAGES (TOP SEARCH PRIORITY)      -->
+  <!-- ===================================================================== -->
   <url>
-    <loc>https://www.vivekanandhasainik.in/about</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://www.vivekanandhasainik.in/results/2026</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-class6-result-banner.png</image:loc>
+      <image:title>AISSEE 2026 Class 6 Results - State Toppers &amp; Centum Achievers</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-shangamithran.png</image:loc>
+      <image:title>V. Shangamithran - AISSEE 2026 State First Topper (280/300)</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-harshath.png</image:loc>
+      <image:title>S. Harshath - AISSEE 2026 State First (Defence Category - 271/300)</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-elavendhan.png</image:loc>
+      <image:title>E. Elavendhan - AISSEE 2026 State Second Topper (255/300)</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-sakthi-vaishnav.png</image:loc>
+      <image:title>V. Sakthi Vaishnav - AISSEE 2026 State Third Topper (265/300)</image:title>
+    </image:image>
   </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/contact</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/gallery</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/courses</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/courses/class-6-aissee</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/courses/class-9-aissee</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/results</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/top-10-sainik-school-coaching-india-2026</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/early-coaching-for-sainik-school</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-daily-routine</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-advantages-for-parents</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-syllabus-2027</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-preparation-strategy-2027</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/blog/class-9-aissee-mock-tests-pyqs</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.75</priority>
-  </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/blog/class-6-aissee-pyqs</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.75</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class6-mock-tests-poster.png</image:loc>
+      <image:title>Class 6 AISSEE Super 9 Mock Test Series &amp; Free Sample Paper (2009-2025 PYQs)</image:title>
+    </image:image>
   </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/class-9-aissee-mock-tests-pyqs</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class9-mock-tests-poster.png</image:loc>
+      <image:title>Class 9 AISSEE Super 9 Mock Test Series &amp; Free Sample Paper (2018-2025 PYQs)</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/courses</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/courses/class-6-aissee</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class6-mock-tests-poster.png</image:loc>
+      <image:title>Class 6 AISSEE Coaching &amp; Super 9 Mock Test Series</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/courses/class-9-aissee</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/class9-mock-tests-poster.png</image:loc>
+      <image:title>Class 9 AISSEE Lateral Entry Coaching &amp; Super 9 Mock Test Series</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/results</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-class6-result-banner.png</image:loc>
+      <image:title>AISSEE Results Year-Wise - Vivekanandha Sainik Coaching Center</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/student</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/dashboard</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ===================================================================== -->
+  <!-- 3. BLOG HUB & HIGH-VALUE 2026-2027 AISSEE / RMS / RIMC GUIDES          -->
+  <!-- ===================================================================== -->
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.92</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-syllabus-2027</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.92</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/blog-syllabus-2027.png</image:loc>
+      <image:title>Sainik School Syllabus 2027 for Class 6 &amp; Class 9 (AISSEE Official Pattern)</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-preparation-strategy-2027</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.92</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/blog-strategy-2027.png</image:loc>
+      <image:title>Sainik School Preparation Strategy 2027 - 12-Month Study Plan</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-admission-faqs-aissee</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/top-10-sainik-school-coaching-india-2026</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/top10-coaching-banner.png</image:loc>
+      <image:title>Top 10 Sainik School Coaching Centres in India 2026</image:title>
+    </image:image>
+  </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/blog/rms-rimc-admission-guide-2026</loc>
+    <lastmod>2026-04-19</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.90</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2018-part1</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/blog/early-coaching-for-sainik-school</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2018-part2</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-daily-routine</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2019-part1</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-advantages-for-parents</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
   </url>
+
+  <!-- ===================================================================== -->
+  <!-- 4. INSTITUTE INFORMATION, GALLERY & CONTACT PAGES                     -->
+  <!-- ===================================================================== -->
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2019-part2</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/about</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/founder-photo.jpg</image:loc>
+      <image:title>S. Radhakrishnan - Founder of Vivekanandha Sainik Coaching Centre</image:title>
+    </image:image>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2021</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/contact</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2022</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/gallery</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
   </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2023</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2024</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2025</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
+
+  <!-- ===================================================================== -->
+  <!-- 5. CLASS 9 MOCK TESTS & PYQ RESOURCES (ORDERED NEWEST FIRST)          -->
+  <!-- ===================================================================== -->
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class9-mock-1</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class9-mock-2</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class9-mock-3</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class9-mock-4</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2009</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2025</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2010</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2024</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2012</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2023</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2013</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2022</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2014</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2021</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2015</loc>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2019-part1</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2018-part1</loc>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2019-part2</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2018-part2</loc>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2018-part1</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2019-part1</loc>
+    <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2018-part2</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2019-part2</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2021</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2022</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2023</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2024</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
+
+  <!-- ===================================================================== -->
+  <!-- 6. CLASS 6 PYQ RESOURCES (ORDERED NEWEST FIRST)                       -->
+  <!-- ===================================================================== -->
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2025</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2024</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2023</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2022</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2021</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2019-part1</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2019-part2</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2018-part1</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2018-part2</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2015</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.72</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2014</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.72</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2013</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.72</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2012</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.72</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2010</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/resources/class6-pyq-2009</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- ===================================================================== -->
+  <!-- 7. HISTORICAL ARCHIVE RESULTS (2012-2019)                             -->
+  <!-- ===================================================================== -->
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2019</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2018</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2017</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.72</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2016</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.72</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2015</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.70</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2014</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.70</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2013</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.45</priority>
+    <priority>0.70</priority>
   </url>
+
   <url>
     <loc>https://www.vivekanandhasainik.in/results/2012</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.70</priority>
   </url>
+
 </urlset>

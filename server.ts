@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.NODE_ENV === "production" ? Number(process.env.PORT) || 3000 : 3000;
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
@@ -50,16 +50,29 @@ app.get("/lovable-uploads/:filename", (req: Request, res: Response, next: NextFu
 });
 
 // ==========================================
-// Configuration & Persistent Storage Setup
+// Configuration & Persistent Database Integration
 // ==========================================
-const DATA_DIR = path.join(__dirname, "data");
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-const PURCHASES_FILE = path.join(DATA_DIR, "purchases.json");
-const STUDENTS_FILE = path.join(DATA_DIR, "students.json");
-const ACCESS_REQUESTS_FILE = path.join(DATA_DIR, "access_requests.json");
+import {
+  initDatabase,
+  upsertStudent,
+  getStudentByEmail,
+  getAllStudents,
+  getActivePurchaseForEmail,
+  getAllActivePurchasesForEmail,
+  getPurchaseByPaymentId,
+  savePurchase,
+  revokePurchases,
+  getAllPurchases,
+  saveAccessRequest,
+  getAccessRequestById,
+  getAllAccessRequests,
+  getAccessRequestsForStudent,
+  checkDuplicateUtr,
+  getAdminStatsData,
+  PurchaseRecord,
+  StudentProfile,
+  AccessRequestRecord,
+} from "./server/db.ts";
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "vcc-aissee-secret-key-2026-vivekanandha";
 const ADMIN_USERNAME = "VccAdmin";
@@ -72,92 +85,6 @@ const SUPPORT_WHATSAPP = "+91 8940399717";
 const SUPPORT_WHATSAPP_URL = "https://wa.me/8940399717";
 const PAYMENT_MODE = process.env.PAYMENT_MODE || "manual_upi";
 
-// ==========================================
-// Data Models
-// ==========================================
-interface PurchaseRecord {
-  paymentId: string;
-  orderId: string;
-  email: string;
-  name: string;
-  amount: number;
-  currency: string;
-  verifiedAt: string;
-  expiresAt: number;
-  status: "verified" | "manually_granted" | "revoked";
-  accessToken: string;
-  method: "razorpay" | "manual" | "manual_upi";
-  grantedBy?: string;
-  classType: "class-6" | "class-9";
-  packageTitle: string;
-}
-
-interface StudentProfile {
-  id: string;
-  email: string;
-  name: string;
-  picture?: string;
-  createdAt: string;
-  lastLoginAt: string;
-  totalLogins: number;
-}
-
-interface AccessRequestRecord {
-  id: string;
-  classType: "class-6" | "class-9";
-  packageTitle: string;
-  amount: number;
-  currency: string;
-  studentEmail: string;
-  studentName: string;
-  studentPicture?: string;
-  utr: string;
-  submittedAt: string;
-  status: "pending" | "approved" | "rejected";
-  decidedAt?: string;
-  decidedBy?: string;
-  notes?: string;
-  reviewNotes?: string;
-  isDuplicateUtr?: boolean;
-}
-
-// Load / Save helpers
-function loadJsonMap<T>(filePath: string): Map<string, T> {
-  try {
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, "utf8");
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) {
-        return new Map<string, T>(arr);
-      }
-    }
-  } catch (err) {
-    console.error(`Error loading ${filePath}:`, err);
-  }
-  return new Map<string, T>();
-}
-
-function saveJsonMap<T>(filePath: string, map: Map<string, T>) {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(Array.from(map.entries()), null, 2), "utf8");
-  } catch (err) {
-    console.error(`Error saving ${filePath}:`, err);
-  }
-}
-
-const purchasesMap = loadJsonMap<PurchaseRecord>(PURCHASES_FILE);
-const studentsMap = loadJsonMap<StudentProfile>(STUDENTS_FILE);
-const accessRequestsMap = loadJsonMap<AccessRequestRecord>(ACCESS_REQUESTS_FILE);
-
-function savePurchases() {
-  saveJsonMap(PURCHASES_FILE, purchasesMap);
-}
-function saveStudents() {
-  saveJsonMap(STUDENTS_FILE, studentsMap);
-}
-function saveAccessRequests() {
-  saveJsonMap(ACCESS_REQUESTS_FILE, accessRequestsMap);
-}
 
 // ==========================================
 // Mock Test Catalog (Class 6 & Class 9)
@@ -419,9 +346,6 @@ function verifyAccessToken(token: string): {
     if (sig !== expectedSig) return { valid: false };
     if (Date.now() > Number(expiresAtStr)) return { valid: false };
 
-    const record = purchasesMap.get(paymentId);
-    if (record && record.status === "revoked") return { valid: false };
-
     return {
       valid: true,
       email,
@@ -468,48 +392,44 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-function getActivePurchaseForEmail(email: string, classType: "class-6" | "class-9"): PurchaseRecord | null {
-  const norm = email.toLowerCase().trim();
-  if (!norm || norm === "cadet.student@gmail.com") return null;
-  for (const rec of purchasesMap.values()) {
-    const recClass = rec.classType || "class-9";
-    if (rec.email.toLowerCase() === norm && recClass === classType && rec.status !== "revoked" && rec.expiresAt > Date.now()) {
-      return rec;
+async function isAuthorizedForPaper(paperId: string, token: string, email: string): Promise<boolean> {
+  try {
+    if (
+      paperId === "c6-free-sample" ||
+      paperId === "c9-free-sample" ||
+      paperId === "free-sample"
+    ) {
+      return true;
     }
-  }
-  return null;
-}
+    const requiredClass: "class-6" | "class-9" = paperId.startsWith("c6-") ? "class-6" : "class-9";
 
-function getAllActivePurchasesForEmail(email: string): PurchaseRecord[] {
-  const norm = email.toLowerCase().trim();
-  if (!norm || norm === "cadet.student@gmail.com") return [];
-  const list: PurchaseRecord[] = [];
-  for (const rec of purchasesMap.values()) {
-    if (rec.email.toLowerCase() === norm && rec.status !== "revoked" && rec.expiresAt > Date.now()) {
-      list.push(rec);
+    if (token) {
+      const verified = verifyAccessToken(token);
+      if (verified.valid && verified.paymentId) {
+        const purchase = await getPurchaseByPaymentId(verified.paymentId);
+        if (purchase && purchase.status !== "revoked" && purchase.expiresAt > Date.now()) {
+          if (verified.classType === requiredClass || purchase.classType === requiredClass) {
+            return true;
+          }
+        }
+      }
+      if (verified.valid && verified.email) {
+        const activePurchase = await getActivePurchaseForEmail(verified.email, requiredClass);
+        if (activePurchase) return true;
+      }
     }
-  }
-  return list;
-}
 
-function isAuthorizedForPaper(paperId: string, token: string, email: string): boolean {
-  if (
-    paperId === "c6-free-sample" ||
-    paperId === "c9-free-sample" ||
-    paperId === "free-sample"
-  ) {
-    return true;
+    if (email) {
+      const activePurchase = await getActivePurchaseForEmail(email, requiredClass);
+      if (activePurchase) return true;
+    }
+
+    return false;
+  } catch (err) {
+    // Fail-Closed: Never grant unauthorized course access on database failure
+    console.error("[Authorization Check Error - Failing Closed]:", err);
+    return false;
   }
-  const requiredClass: "class-6" | "class-9" = paperId.startsWith("c6-") ? "class-6" : "class-9";
-  const verified = verifyAccessToken(token);
-  if (verified.valid && verified.email) {
-    if (verified.classType === requiredClass) return true;
-    if (getActivePurchaseForEmail(verified.email, requiredClass)) return true;
-  }
-  if (email && getActivePurchaseForEmail(email, requiredClass)) {
-    return true;
-  }
-  return false;
 }
 
 function resolvePdfPaperKey(rawId: string, typeQuery?: string): string {
@@ -570,30 +490,16 @@ app.post("/api/auth/google", async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Please enter a valid Google email address." });
     }
 
-    const now = new Date().toISOString();
-    const existing = studentsMap.get(email);
-    const student: StudentProfile = {
-      id: existing?.id || `stu_${Date.now().toString(36)}`,
-      email,
-      name: name || existing?.name || email.split("@")[0],
-      picture: picture || existing?.picture,
-      createdAt: existing?.createdAt || now,
-      lastLoginAt: now,
-      totalLogins: (existing?.totalLogins || 0) + 1,
-    };
+    const student = await upsertStudent({ email, name, picture });
 
-    studentsMap.set(email, student);
-    saveStudents();
-
-    const activePurchase = getActivePurchaseForEmail(email, targetClass);
-    const allPurchases = getAllActivePurchasesForEmail(email).map((p) => ({
+    const activePurchase = await getActivePurchaseForEmail(email, targetClass);
+    const rawPurchases = await getAllActivePurchasesForEmail(email);
+    const allPurchases = rawPurchases.map((p) => ({
       ...p,
       papers: p.classType === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS,
     }));
-    const latestRequest =
-      Array.from(accessRequestsMap.values())
-        .filter((r) => r.studentEmail.toLowerCase() === email && r.classType === targetClass)
-        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0] || null;
+    const userRequests = await getAccessRequestsForStudent(email, targetClass);
+    const latestRequest = userRequests[0] || null;
 
     return res.json({
       success: true,
@@ -609,7 +515,7 @@ app.post("/api/auth/google", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/access-requests/submit", (req: Request, res: Response) => {
+app.post("/api/access-requests/submit", async (req: Request, res: Response) => {
   try {
     const { email, name, classType, utr, picture } = req.body;
     const normalizedEmail = String(email || "").toLowerCase().trim();
@@ -627,7 +533,7 @@ app.post("/api/access-requests/submit", (req: Request, res: Response) => {
       });
     }
 
-    const existingPurchase = getActivePurchaseForEmail(normalizedEmail, targetClass);
+    const existingPurchase = await getActivePurchaseForEmail(normalizedEmail, targetClass);
     if (existingPurchase) {
       return res.json({
         success: true,
@@ -637,19 +543,7 @@ app.post("/api/access-requests/submit", (req: Request, res: Response) => {
       });
     }
 
-    let isDuplicateUtr = false;
-    let existingRequestId: string | null = null;
-    for (const [id, reqRecord] of accessRequestsMap.entries()) {
-      if (
-        reqRecord.utr.toLowerCase() === cleanedUtr.toLowerCase() &&
-        (reqRecord.studentEmail.toLowerCase() !== normalizedEmail || reqRecord.classType !== targetClass)
-      ) {
-        isDuplicateUtr = true;
-      }
-      if (reqRecord.studentEmail.toLowerCase() === normalizedEmail && reqRecord.classType === targetClass) {
-        existingRequestId = id;
-      }
-    }
+    const { isDuplicate, existingRequestId } = await checkDuplicateUtr(cleanedUtr, normalizedEmail, targetClass);
 
     const packageTitle =
       targetClass === "class-6"
@@ -672,11 +566,10 @@ app.post("/api/access-requests/submit", (req: Request, res: Response) => {
       utr: cleanedUtr,
       submittedAt: new Date().toISOString(),
       status: "pending",
-      isDuplicateUtr,
+      isDuplicateUtr: isDuplicate,
     };
 
-    accessRequestsMap.set(requestId, newRequest);
-    saveAccessRequests();
+    await saveAccessRequest(newRequest);
 
     return res.json({
       success: true,
@@ -691,78 +584,99 @@ app.post("/api/access-requests/submit", (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/student/status", (req: Request, res: Response) => {
-  const email = String(req.query.email || "").toLowerCase().trim();
-  const classType = req.query.classType as "class-6" | "class-9" | undefined;
+app.get("/api/student/status", async (req: Request, res: Response) => {
+  try {
+    const email = String(req.query.email || "").toLowerCase().trim();
+    const classType = req.query.classType as "class-6" | "class-9" | undefined;
 
-  if (!email) {
-    return res.status(400).json({ success: false, message: "Email required." });
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email required." });
+    }
+
+    const student = (await getStudentByEmail(email)) || null;
+    const rawPurchases = await getAllActivePurchasesForEmail(email);
+    const allPurchases = rawPurchases.map((p) => ({
+      ...p,
+      papers: p.classType === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS,
+    }));
+    const classPurchase = classType ? await getActivePurchaseForEmail(email, classType) : rawPurchases[0] || null;
+    const userRequests = await getAccessRequestsForStudent(email, classType);
+
+    return res.json({
+      success: true,
+      email,
+      student,
+      purchases: allPurchases,
+      activePurchase: classPurchase,
+      hasPurchased: Boolean(classPurchase),
+      latestRequest: userRequests[0] || null,
+      allRequests: userRequests,
+      supportWhatsAppUrl: SUPPORT_WHATSAPP_URL,
+    });
+  } catch (err) {
+    console.error("[Student Status Error]:", err);
+    return res.status(500).json({ success: false, message: "Error fetching student status." });
   }
-
-  const student = studentsMap.get(email) || null;
-  const rawPurchases = getAllActivePurchasesForEmail(email);
-  const allPurchases = rawPurchases.map((p) => ({
-    ...p,
-    papers: p.classType === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS,
-  }));
-  const classPurchase = classType ? getActivePurchaseForEmail(email, classType) : rawPurchases[0] || null;
-  const userRequests = Array.from(accessRequestsMap.values())
-    .filter((r) => r.studentEmail.toLowerCase() === email && (!classType || r.classType === classType))
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-
-  return res.json({
-    success: true,
-    email,
-    student,
-    purchases: allPurchases,
-    activePurchase: classPurchase,
-    hasPurchased: Boolean(classPurchase),
-    latestRequest: userRequests[0] || null,
-    allRequests: userRequests,
-    supportWhatsAppUrl: SUPPORT_WHATSAPP_URL,
-  });
 });
 
-app.get("/api/access-portal", (req: Request, res: Response) => {
-  const token = String(req.query.token || "").trim();
-  const email = String(req.query.email || "").toLowerCase().trim();
-  const requestedClass = (req.query.classType as "class-6" | "class-9") || "class-9";
+app.get("/api/access-portal", async (req: Request, res: Response) => {
+  try {
+    const token = String(req.query.token || "").trim();
+    const email = String(req.query.email || "").toLowerCase().trim();
+    const requestedClass = (req.query.classType as "class-6" | "class-9") || "class-9";
 
-  if (token) {
-    const verified = verifyAccessToken(token);
-    if (verified.valid && verified.email) {
-      const targetClass = verified.classType || "class-9";
-      const purchase = getActivePurchaseForEmail(verified.email, targetClass);
-      const student = studentsMap.get(verified.email);
-      const papers = targetClass === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS;
-      return res.json({
-        success: true,
-        student: purchase?.name || student?.name || "Student",
-        email: verified.email,
-        classType: targetClass,
-        accessToken: token,
-        papers,
-      });
+    if (token) {
+      const verified = verifyAccessToken(token);
+      if (verified.valid && verified.email) {
+        const targetClass = verified.classType || "class-9";
+        let purchase: PurchaseRecord | null = null;
+        if (verified.paymentId) {
+          const p = await getPurchaseByPaymentId(verified.paymentId);
+          if (p && p.status !== "revoked" && p.expiresAt > Date.now()) {
+            purchase = p;
+          }
+        }
+        if (!purchase) {
+          purchase = await getActivePurchaseForEmail(verified.email, targetClass);
+        }
+
+        if (purchase) {
+          const student = await getStudentByEmail(verified.email);
+          const papers = targetClass === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS;
+          return res.json({
+            success: true,
+            student: purchase.name || student?.name || "Student",
+            email: verified.email,
+            classType: targetClass,
+            accessToken: token,
+            papers,
+          });
+        }
+      }
     }
-  }
 
-  if (email) {
-    const purchase = getActivePurchaseForEmail(email, requestedClass);
-    if (purchase) {
-      const papers = requestedClass === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS;
-      return res.json({
-        success: true,
-        student: purchase.name,
-        email: purchase.email,
-        classType: requestedClass,
-        accessToken: purchase.accessToken,
-        papers,
-      });
+    if (email) {
+      const purchase = await getActivePurchaseForEmail(email, requestedClass);
+      if (purchase) {
+        const papers = requestedClass === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS;
+        return res.json({
+          success: true,
+          student: purchase.name,
+          email: purchase.email,
+          classType: requestedClass,
+          accessToken: purchase.accessToken,
+          papers,
+        });
+      }
     }
-  }
 
-  return res.status(403).json({ success: false, message: "No active verified purchase found." });
+    return res.status(403).json({ success: false, message: "No active verified purchase found." });
+  } catch (err) {
+    console.error("[Access Portal Error]:", err);
+    return res.status(500).json({ success: false, message: "Error verifying access portal." });
+  }
 });
+
 
 // Public Instant Free Sample Mock Paper #1 (Class 6 - 125 Questions + Answer Key + Solutions)
 app.get("/api/sample/class-6-free-mock", (req: Request, res: Response) => {
@@ -841,7 +755,7 @@ function ensurePdfPagesRendered(
 }
 
 // In-App PDF Viewer Page List Endpoint (Immune to iframe/new-tab 403 restrictions)
-app.get("/api/pdf-pages/:paperId", (req: Request, res: Response) => {
+app.get("/api/pdf-pages/:paperId", async (req: Request, res: Response) => {
   const rawId = req.params.paperId;
   const typeQuery = String(req.query.type || "question");
   const paperId = resolvePdfPaperKey(rawId, typeQuery);
@@ -853,7 +767,8 @@ app.get("/api/pdf-pages/:paperId", (req: Request, res: Response) => {
     return res.status(404).json({ success: false, message: "Mock paper not found." });
   }
 
-  if (!isAuthorizedForPaper(paperId, token, email)) {
+  const authorized = await isAuthorizedForPaper(paperId, token, email);
+  if (!authorized) {
     return res.status(403).json({
       success: false,
       message: `Please sign in with an approved ${
@@ -894,7 +809,7 @@ app.get("/api/pdf-pages/:paperId", (req: Request, res: Response) => {
 });
 
 // Serve individual rendered PNG page for In-App PDF Viewer
-app.get("/api/pdf-page/:paperId/:pageNum", (req: Request, res: Response) => {
+app.get("/api/pdf-page/:paperId/:pageNum", async (req: Request, res: Response) => {
   const rawId = req.params.paperId;
   const typeQuery = String(req.query.type || "question");
   const paperId = resolvePdfPaperKey(rawId, typeQuery);
@@ -907,7 +822,8 @@ app.get("/api/pdf-page/:paperId/:pageNum", (req: Request, res: Response) => {
     return res.status(404).send("Page not found.");
   }
 
-  if (!isAuthorizedForPaper(paperId, token, email)) {
+  const authorized = await isAuthorizedForPaper(paperId, token, email);
+  if (!authorized) {
     return res.status(403).send("Unauthorized to view this page.");
   }
 
@@ -923,7 +839,7 @@ app.get("/api/pdf-page/:paperId/:pageNum", (req: Request, res: Response) => {
   return res.sendFile(targetPage);
 });
 
-app.get("/api/download/:paperId", (req: Request, res: Response) => {
+app.get("/api/download/:paperId", async (req: Request, res: Response) => {
   const token = String(req.query.token || "").trim();
   const email = String(req.query.email || "").toLowerCase().trim();
   const type = String(req.query.type || "question");
@@ -947,7 +863,8 @@ app.get("/api/download/:paperId", (req: Request, res: Response) => {
   // Serve real Class 6 and Class 9 Super 9 Full-Length PDFs
   const pdfMeta = ALL_PDF_FILES[paperId];
   if (pdfMeta) {
-    if (!isAuthorizedForPaper(paperId, token, email)) {
+    const authorized = await isAuthorizedForPaper(paperId, token, email);
+    if (!authorized) {
       return res
         .status(403)
         .send(`Unauthorized: Valid ${pdfMeta.classType.toUpperCase()} access is required to download this mock paper.`);
@@ -974,7 +891,7 @@ app.get("/api/download/:paperId", (req: Request, res: Response) => {
     return res.status(404).send("Mock paper not found.");
   }
 
-  const student = studentsMap.get(verified.email);
+  const student = (await getStudentByEmail(verified.email)) || null;
   const studentName = student?.name || "Verified Cadet";
   const isSolution = type === "solution";
 
@@ -1059,234 +976,251 @@ app.get("/api/admin/verify-session", requireAdmin, (_req: Request, res: Response
   });
 });
 
-app.get("/api/admin/stats", requireAdmin, (_req: Request, res: Response) => {
-  const allPurchases = Array.from(purchasesMap.values());
-  const verifiedPurchases = allPurchases.filter((p) => p.status !== "revoked");
-  const totalRevenue = verifiedPurchases.reduce((acc, curr) => acc + (curr.amount || 99), 0);
-  const allRequests = Array.from(accessRequestsMap.values());
-  const pendingRequests = allRequests.filter((r) => r.status === "pending");
-
-  res.json({
-    success: true,
-    stats: {
-      totalRevenue,
-      totalPurchases: verifiedPurchases.length,
-      totalStudents: studentsMap.size,
-      recentCount: verifiedPurchases.length,
-      pendingRequestsCount: pendingRequests.length,
-      totalRequestsCount: allRequests.length,
-      class6PurchasesCount: verifiedPurchases.filter((p) => p.classType === "class-6").length,
-      class9PurchasesCount: verifiedPurchases.filter((p) => p.classType !== "class-6").length,
-      papersCount: 18,
-      gateways: {
-        paymentMode: PAYMENT_MODE,
-        upiId: UPI_ID,
-        upiPayeeName: UPI_PAYEE_NAME,
-        upiQrImage: UPI_QR_IMAGE,
-        supportWhatsApp: SUPPORT_WHATSAPP,
-        razorpayDormant: true,
-        razorpayConfigured: false,
-        razorpayTestMode: false,
-        googleAuthEnabled: true,
+app.get("/api/admin/stats", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const statsData = await getAdminStatsData();
+    res.json({
+      success: true,
+      stats: {
+        ...statsData,
+        recentCount: statsData.totalPurchases,
+        papersCount: 18,
+        gateways: {
+          paymentMode: PAYMENT_MODE,
+          upiId: UPI_ID,
+          upiPayeeName: UPI_PAYEE_NAME,
+          upiQrImage: UPI_QR_IMAGE,
+          supportWhatsApp: SUPPORT_WHATSAPP,
+          razorpayDormant: true,
+          razorpayConfigured: false,
+          razorpayTestMode: false,
+          googleAuthEnabled: true,
+        },
       },
-    },
-  });
-});
-
-app.get("/api/admin/access-requests", requireAdmin, (_req: Request, res: Response) => {
-  const requests = Array.from(accessRequestsMap.values()).sort(
-    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-  );
-  res.json({ success: true, requests });
-});
-
-app.post("/api/admin/approve-request", requireAdmin, (req: Request, res: Response) => {
-  const { requestId, notes } = req.body;
-  const reqRecord = accessRequestsMap.get(String(requestId || ""));
-  if (!reqRecord) {
-    return res.status(404).json({ success: false, message: "Access request not found." });
+    });
+  } catch (err: any) {
+    console.error("[Admin Stats Error]:", err);
+    res.status(500).json({ success: false, message: "Error calculating statistics." });
   }
-
-  const now = new Date().toISOString();
-  reqRecord.status = "approved";
-  reqRecord.decidedAt = now;
-  reqRecord.decidedBy = ADMIN_USERNAME;
-  reqRecord.notes = notes || "Verified manual UPI payment";
-  accessRequestsMap.set(reqRecord.id, reqRecord);
-  saveAccessRequests();
-
-  const paymentId = `UPI_${reqRecord.utr}_${Date.now().toString(36)}`;
-  const accessToken = createAccessToken(reqRecord.studentEmail, reqRecord.classType, paymentId);
-  const purchase: PurchaseRecord = {
-    paymentId,
-    orderId: reqRecord.id,
-    email: reqRecord.studentEmail,
-    name: reqRecord.studentName,
-    amount: reqRecord.amount || 99,
-    currency: "INR",
-    verifiedAt: now,
-    expiresAt: Date.now() + 180 * 24 * 60 * 60 * 1000,
-    status: "verified",
-    accessToken,
-    method: "manual_upi",
-    grantedBy: ADMIN_USERNAME,
-    classType: reqRecord.classType,
-    packageTitle: reqRecord.packageTitle,
-  };
-
-  purchasesMap.set(paymentId, purchase);
-  savePurchases();
-
-  return res.json({
-    success: true,
-    message: `Approved access for ${reqRecord.studentName} (${reqRecord.studentEmail})!`,
-    purchase,
-  });
 });
 
-app.post("/api/admin/reject-request", requireAdmin, (req: Request, res: Response) => {
-  const { requestId, notes } = req.body;
-  const reqRecord = accessRequestsMap.get(String(requestId || ""));
-  if (!reqRecord) {
-    return res.status(404).json({ success: false, message: "Access request not found." });
+app.get("/api/admin/access-requests", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const requests = await getAllAccessRequests();
+    res.json({ success: true, requests });
+  } catch (err: any) {
+    console.error("[Admin Access Requests Error]:", err);
+    res.status(500).json({ success: false, message: "Error fetching access requests." });
   }
-
-  reqRecord.status = "rejected";
-  reqRecord.decidedAt = new Date().toISOString();
-  reqRecord.decidedBy = ADMIN_USERNAME;
-  reqRecord.notes = notes || "UTR could not be verified";
-  reqRecord.reviewNotes = reqRecord.notes;
-  accessRequestsMap.set(reqRecord.id, reqRecord);
-  saveAccessRequests();
-
-  return res.json({
-    success: true,
-    message: `Rejected request for ${reqRecord.studentEmail}.`,
-  });
 });
 
-app.get("/api/admin/purchases", requireAdmin, (_req: Request, res: Response) => {
-  const purchases = Array.from(purchasesMap.values()).sort(
-    (a, b) => new Date(b.verifiedAt).getTime() - new Date(a.verifiedAt).getTime()
-  );
-  res.json({ success: true, purchases });
-});
+app.post("/api/admin/approve-request", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { requestId, notes } = req.body;
+    const reqRecord = await getAccessRequestById(String(requestId || ""));
+    if (!reqRecord) {
+      return res.status(404).json({ success: false, message: "Access request not found." });
+    }
 
-app.get("/api/admin/students", requireAdmin, (_req: Request, res: Response) => {
-  const list = Array.from(studentsMap.values()).map((s) => {
-    const c6 = getActivePurchaseForEmail(s.email, "class-6");
-    const c9 = getActivePurchaseForEmail(s.email, "class-9");
-    const active = c9 || c6;
-    return {
-      ...s,
-      hasPurchased: Boolean(active),
-      class6Purchased: Boolean(c6),
-      class9Purchased: Boolean(c9),
-      purchaseDate: active?.verifiedAt || null,
-      purchaseMethod: active?.method || null,
+    const now = new Date().toISOString();
+    reqRecord.status = "approved";
+    reqRecord.decidedAt = now;
+    reqRecord.decidedBy = ADMIN_USERNAME;
+    reqRecord.notes = notes || "Verified manual UPI payment";
+    await saveAccessRequest(reqRecord);
+
+    const paymentId = `UPI_${reqRecord.utr}_${Date.now().toString(36)}`;
+    const accessToken = createAccessToken(reqRecord.studentEmail, reqRecord.classType, paymentId);
+    const purchase: PurchaseRecord = {
+      paymentId,
+      orderId: reqRecord.id,
+      email: reqRecord.studentEmail,
+      name: reqRecord.studentName,
+      amount: reqRecord.amount || 99,
+      currency: "INR",
+      verifiedAt: now,
+      expiresAt: Date.now() + 180 * 24 * 60 * 60 * 1000,
+      status: "verified",
+      accessToken,
+      method: "manual_upi",
+      grantedBy: ADMIN_USERNAME,
+      classType: reqRecord.classType,
+      packageTitle: reqRecord.packageTitle,
     };
-  });
-  res.json({ success: true, students: list });
+
+    await savePurchase(purchase);
+
+    return res.json({
+      success: true,
+      message: `Approved access for ${reqRecord.studentName} (${reqRecord.studentEmail})!`,
+      purchase,
+    });
+  } catch (err: any) {
+    console.error("[Approve Request Error]:", err);
+    return res.status(500).json({ success: false, message: "Error approving request." });
+  }
 });
 
-app.post("/api/admin/grant-access", requireAdmin, (req: Request, res: Response) => {
-  const { email, name, classType, note } = req.body;
-  const normEmail = String(email || "").toLowerCase().trim();
-  const studentName = String(name || "Student Cadet").trim();
-  const targetClass: "class-6" | "class-9" = classType === "class-6" ? "class-6" : "class-9";
+app.post("/api/admin/reject-request", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { requestId, notes } = req.body;
+    const reqRecord = await getAccessRequestById(String(requestId || ""));
+    if (!reqRecord) {
+      return res.status(404).json({ success: false, message: "Access request not found." });
+    }
 
-  if (!normEmail || !normEmail.includes("@")) {
-    return res.status(400).json({ success: false, message: "Valid student email required." });
+    reqRecord.status = "rejected";
+    reqRecord.decidedAt = new Date().toISOString();
+    reqRecord.decidedBy = ADMIN_USERNAME;
+    reqRecord.notes = notes || "UTR could not be verified";
+    reqRecord.reviewNotes = reqRecord.notes;
+    await saveAccessRequest(reqRecord);
+
+    return res.json({
+      success: true,
+      message: `Rejected request for ${reqRecord.studentEmail}.`,
+    });
+  } catch (err: any) {
+    console.error("[Reject Request Error]:", err);
+    return res.status(500).json({ success: false, message: "Error rejecting request." });
   }
+});
 
-  const now = new Date().toISOString();
-  const paymentId = `MANUAL_${Date.now().toString(36).toUpperCase()}`;
-  const accessToken = createAccessToken(normEmail, targetClass, paymentId);
+app.get("/api/admin/purchases", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const purchases = await getAllPurchases();
+    res.json({ success: true, purchases });
+  } catch (err: any) {
+    console.error("[Admin Purchases Error]:", err);
+    res.status(500).json({ success: false, message: "Error fetching purchases." });
+  }
+});
 
-  const purchase: PurchaseRecord = {
-    paymentId,
-    orderId: note || "ADMIN_GRANT",
-    email: normEmail,
-    name: studentName,
-    amount: 99,
-    currency: "INR",
-    verifiedAt: now,
-    expiresAt: Date.now() + 180 * 24 * 60 * 60 * 1000,
-    status: "manually_granted",
-    accessToken,
-    method: "manual",
-    grantedBy: ADMIN_USERNAME,
-    classType: targetClass,
-    packageTitle:
-      targetClass === "class-6"
-        ? "Class 6 AISSEE 9-Mock Test Series & Step-by-Step Solutions"
-        : "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
-  };
+app.get("/api/admin/students", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const allStudentsList = await getAllStudents();
+    const list = await Promise.all(
+      allStudentsList.map(async (s) => {
+        const c6 = await getActivePurchaseForEmail(s.email, "class-6");
+        const c9 = await getActivePurchaseForEmail(s.email, "class-9");
+        const active = c9 || c6;
+        return {
+          ...s,
+          hasPurchased: Boolean(active),
+          class6Purchased: Boolean(c6),
+          class9Purchased: Boolean(c9),
+          purchaseDate: active?.verifiedAt || null,
+          purchaseMethod: active?.method || null,
+        };
+      })
+    );
+    res.json({ success: true, students: list });
+  } catch (err: any) {
+    console.error("[Admin Students Error]:", err);
+    res.status(500).json({ success: false, message: "Error fetching student accounts." });
+  }
+});
 
-  purchasesMap.set(paymentId, purchase);
-  savePurchases();
+app.post("/api/admin/grant-access", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { email, name, classType, note } = req.body;
+    const normEmail = String(email || "").toLowerCase().trim();
+    const studentName = String(name || "Student Cadet").trim();
+    const targetClass: "class-6" | "class-9" = classType === "class-6" ? "class-6" : "class-9";
 
-  if (!studentsMap.has(normEmail)) {
-    studentsMap.set(normEmail, {
-      id: `stu_${Date.now().toString(36)}`,
+    if (!normEmail || !normEmail.includes("@")) {
+      return res.status(400).json({ success: false, message: "Valid student email required." });
+    }
+
+    const now = new Date().toISOString();
+    const paymentId = `MANUAL_${Date.now().toString(36).toUpperCase()}`;
+    const accessToken = createAccessToken(normEmail, targetClass, paymentId);
+
+    const purchase: PurchaseRecord = {
+      paymentId,
+      orderId: note || "ADMIN_GRANT",
       email: normEmail,
       name: studentName,
-      createdAt: now,
-      lastLoginAt: now,
-      totalLogins: 1,
-    });
-    saveStudents();
-  }
+      amount: 99,
+      currency: "INR",
+      verifiedAt: now,
+      expiresAt: Date.now() + 180 * 24 * 60 * 60 * 1000,
+      status: "manually_granted",
+      accessToken,
+      method: "manual",
+      grantedBy: ADMIN_USERNAME,
+      classType: targetClass,
+      packageTitle:
+        targetClass === "class-6"
+          ? "Class 6 AISSEE 9-Mock Test Series & Step-by-Step Solutions"
+          : "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
+    };
 
-  return res.json({ success: true, purchase });
+    await savePurchase(purchase);
+    await upsertStudent({ email: normEmail, name: studentName });
+
+    return res.json({ success: true, purchase });
+  } catch (err: any) {
+    console.error("[Admin Grant Access Error]:", err);
+    return res.status(500).json({ success: false, message: "Error granting course access." });
+  }
 });
 
-app.post("/api/admin/revoke-access", requireAdmin, (req: Request, res: Response) => {
-  const { accessToken, email } = req.body;
-  let found = false;
-  for (const [id, rec] of purchasesMap.entries()) {
-    if (rec.accessToken === accessToken || (email && rec.email.toLowerCase() === String(email).toLowerCase())) {
-      rec.status = "revoked";
-      purchasesMap.set(id, rec);
-      found = true;
-    }
+app.post("/api/admin/revoke-access", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { accessToken, email } = req.body;
+    const count = await revokePurchases({ accessToken, email });
+    return res.json({ success: true, message: `Access revoked for ${count} record(s).` });
+  } catch (err: any) {
+    console.error("[Admin Revoke Access Error]:", err);
+    return res.status(500).json({ success: false, message: "Error revoking course access." });
   }
-  if (found) savePurchases();
-  return res.json({ success: true, message: "Access revoked." });
 });
 
-app.get("/api/admin/export", requireAdmin, (_req: Request, res: Response) => {
-  const rows = [
-    ["PaymentID", "StudentName", "Email", "ClassType", "Amount", "Status", "Method", "VerifiedAt"].join(","),
-    ...Array.from(purchasesMap.values()).map((p) =>
-      [
-        p.paymentId,
-        `"${p.name.replace(/"/g, '""')}"`,
-        p.email,
-        p.classType || "class-9",
-        p.amount,
-        p.status,
-        p.method,
-        p.verifiedAt,
-      ].join(",")
-    ),
-  ].join("\n");
+app.get("/api/admin/export", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const allPurchases = await getAllPurchases();
+    const rows = [
+      ["PaymentID", "StudentName", "Email", "ClassType", "Amount", "Status", "Method", "VerifiedAt"].join(","),
+      ...allPurchases.map((p) =>
+        [
+          p.paymentId,
+          `"${p.name.replace(/"/g, '""')}"`,
+          p.email,
+          p.classType || "class-9",
+          p.amount,
+          p.status,
+          p.method,
+          p.verifiedAt,
+        ].join(",")
+      ),
+    ].join("\n");
 
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", 'attachment; filename="vcc_purchases_export.csv"');
-  return res.send(rows);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="vcc_purchases_export.csv"');
+    return res.send(rows);
+  } catch (err: any) {
+    console.error("[Admin Export Error]:", err);
+    return res.status(500).send("Export failed.");
+  }
 });
 
 // ==========================================
 // Vite Dev Server / Production Static Setup
 // ==========================================
 async function startServer() {
+  try {
+    await initDatabase();
+  } catch (err: any) {
+    console.error("[Server Boot] Database init error:", err.message);
+  }
+
   const isProd = process.env.NODE_ENV === "production";
 
   if (!isProd) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true, hmr: false },
+      server: { middlewareMode: true, hmr: false, ws: false },
       appType: "spa",
     });
     app.use(vite.middlewares);
@@ -1306,3 +1240,4 @@ async function startServer() {
 startServer().catch((err) => {
   console.error("Failed to start server:", err);
 });
+
