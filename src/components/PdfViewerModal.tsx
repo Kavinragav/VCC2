@@ -76,21 +76,32 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
   const [pages, setPages] = R.useState<string[]>([]);
   const [isLoadingPages, setIsLoadingPages] = R.useState(false);
   const [loadError, setLoadError] = R.useState<string | null>(null);
+  const [failedPageCount, setFailedPageCount] = R.useState<number>(0);
   const [zoom, setZoom] = R.useState<number>(100);
   const [isDownloading, setIsDownloading] = R.useState(false);
+
+  const isClass9 = paperId.startsWith("c9") || title.toLowerCase().includes("class 9");
+  const inlinePdfUrl = R.useMemo(() => {
+    if (!downloadUrl) return "";
+    return buildApiUrl(downloadUrl)
+      .replace(/([?&])download=(?:1|true)(&|$)/i, (_match, prefix, suffix) => (suffix === "&" ? prefix : ""))
+      .replace(/[?&]$/, "");
+  }, [downloadUrl]);
 
   R.useEffect(() => {
     if (!isOpen || !paperId) return;
 
     setIsLoadingPages(true);
     setLoadError(null);
+    setFailedPageCount(0);
     setPages([]);
 
     const query = new URLSearchParams();
     if (token) query.set("token", token);
     if (email) query.set("email", email);
+    const qs = query.toString();
 
-    fetch(buildApiUrl(`/api/pdf-pages/${encodeURIComponent(paperId)}?${query.toString()}`), {
+    fetch(buildApiUrl(`/api/pdf-pages/${encodeURIComponent(paperId)}${qs ? `?${qs}` : ""}`), {
       credentials: "include",
     })
       .then(async (res) => {
@@ -101,10 +112,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
         return res.json();
       })
       .then((data) => {
-        if (data.success && Array.isArray(data.pages)) {
+        if (data.success && Array.isArray(data.pages) && data.pages.length > 0) {
           setPages(data.pages.map((pagePath: string) => buildApiUrl(pagePath)));
         } else {
-          setLoadError(data.message || "Could not load paper preview.");
+          setLoadError(data.message || "Preview pages are unavailable right now. You can open or download the PDF directly below.");
         }
       })
       .catch((err: unknown) => {
@@ -123,6 +134,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
     });
   };
 
+  const allImagesFailed = pages.length > 0 && failedPageCount >= pages.length;
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
@@ -130,12 +143,12 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
     >
       {/* Top Toolbar */}
       <div
-        className="px-4 sm:px-6 py-3 border-b flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-lg"
+        className="px-3 sm:px-6 py-3 border-b flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 shrink-0 shadow-lg"
         style={{ backgroundColor: "#071328", borderColor: "rgba(255, 255, 255, 0.15)", color: "#ffffff" }}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <span
-            className="px-2.5 py-1 rounded-lg text-xs font-extrabold uppercase shrink-0"
+            className="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-extrabold uppercase shrink-0"
             style={{
               backgroundColor: isFreeSample ? "#059669" : "#f59e0b",
               color: isFreeSample ? "#ffffff" : "#071328",
@@ -143,23 +156,23 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
           >
             {isFreeSample ? "🎁 Free Sample" : "Super 9 PDF"}
           </span>
-          <div className="truncate">
-            <h3 className="text-sm sm:text-base font-black truncate" style={{ color: "#ffffff" }}>
+          <div className="truncate min-w-0">
+            <h3 className="text-xs sm:text-base font-black truncate" style={{ color: "#ffffff" }}>
               {title}
             </h3>
-            <p className="text-[11px] truncate" style={{ color: "#94a3b8" }}>
+            <p className="text-[10px] sm:text-[11px] truncate" style={{ color: "#94a3b8" }}>
               {subtitle ||
                 (pages.length > 0
-                  ? `${pages.length} Pages · Complete 125 Questions + Master Answer Key + Step-by-Step Solutions`
+                  ? `${pages.length} Pages · Complete ${isClass9 ? "150" : "125"} Questions + Master Answer Key + Step-by-Step Solutions`
                   : "Complete Question Paper + Answer Key + Step-by-Step Solutions")}
             </p>
           </div>
         </div>
 
         {/* Zoom & Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <div
-            className="hidden sm:flex items-center rounded-xl border px-1.5 py-1 gap-1"
+            className="hidden md:flex items-center rounded-xl border px-1.5 py-1 gap-1"
             style={{ backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.18)" }}
           >
             <button
@@ -185,21 +198,40 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
             </button>
           </div>
 
+          {inlinePdfUrl && (
+            <a
+              href={inlinePdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2 px-2.5 sm:px-3.5 rounded-xl font-bold text-xs border transition-colors flex items-center gap-1 cursor-pointer"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                borderColor: "rgba(255, 255, 255, 0.25)",
+                color: "#ffffff",
+              }}
+              title="Open PDF in a new browser tab"
+            >
+              <span>↗</span>
+              <span className="hidden sm:inline">Open in New Tab</span>
+              <span className="sm:hidden">Open PDF</span>
+            </a>
+          )}
+
           <button
             type="button"
             onClick={handleDownloadClick}
             disabled={isDownloading}
-            className="py-2 px-3.5 sm:px-4 rounded-xl font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+            className="py-2 px-3 sm:px-4 rounded-xl font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
             style={{ backgroundColor: "#059669", color: "#ffffff" }}
           >
             <span>⬇️</span>
-            <span>{isDownloading ? "Downloading PDF..." : "Download PDF"}</span>
+            <span>{isDownloading ? "Downloading..." : "Download PDF"}</span>
           </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="py-2 px-3 rounded-xl font-bold text-xs border transition-colors cursor-pointer"
+            className="py-2 px-2.5 sm:px-3 rounded-xl font-bold text-xs border transition-colors cursor-pointer"
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.1)",
               borderColor: "rgba(255, 255, 255, 0.25)",
@@ -212,9 +244,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
       </div>
 
       {/* Main Scrollable Document Pages Container */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-5 flex flex-col items-center">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-6 space-y-4 sm:space-y-6 flex flex-col items-center">
         {isLoadingPages ? (
-          <div className="my-auto text-center p-8 rounded-2xl max-w-md" style={{ backgroundColor: "#0f2547", color: "#ffffff" }}>
+          <div className="my-auto text-center p-8 rounded-2xl max-w-md shrink-0" style={{ backgroundColor: "#0f2547", color: "#ffffff" }}>
             <div
               className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-4"
               style={{ borderColor: "#f59e0b", borderTopColor: "transparent" }}
@@ -224,18 +256,29 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
               Preparing high-resolution exam pages for instant viewing.
             </p>
           </div>
-        ) : loadError ? (
+        ) : loadError || allImagesFailed ? (
           <div
-            className="my-auto text-center p-6 sm:p-8 rounded-2xl max-w-lg border-2 space-y-4"
+            className="my-auto text-center p-6 sm:p-8 rounded-2xl max-w-lg border-2 space-y-4 shrink-0"
             style={{ backgroundColor: "#ffffff", borderColor: "#f87171", color: "#0f172a" }}
           >
             <div className="text-lg font-black" style={{ color: "#b91c1c" }}>
-              Unable to preview paper pages
+              Unable to render inline page preview
             </div>
             <p className="text-xs leading-relaxed" style={{ color: "#475569" }}>
-              {loadError}
+              {loadError || "The page images could not be displayed inline on this device. You can open the full PDF directly in a new tab or download it to your device."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {inlinePdfUrl && (
+                <a
+                  href={inlinePdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-5 rounded-xl font-black text-xs cursor-pointer"
+                  style={{ backgroundColor: "#071328", color: "#fbbf24" }}
+                >
+                  ↗ Open PDF in New Tab
+                </a>
+              )}
               <button
                 type="button"
                 onClick={handleDownloadClick}
@@ -258,19 +301,18 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
           pages.map((pageUrl, idx) => (
             <div
               key={pageUrl}
-              className="bg-white rounded-xl shadow-2xl overflow-hidden border transition-all"
+              className="w-full shrink-0 bg-white rounded-xl shadow-2xl overflow-hidden border transition-all"
               style={{
-                width: `${Math.min(100, zoom)}%`,
                 maxWidth: `${Math.round((900 * zoom) / 100)}px`,
                 borderColor: "#cbd5e1",
               }}
             >
               <div
-                className="px-4 py-1.5 border-b flex items-center justify-between text-[11px] font-bold"
+                className="px-3 sm:px-4 py-1.5 border-b flex items-center justify-between gap-2 text-[11px] font-bold"
                 style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0", color: "#475569" }}
               >
-                <span>{title}</span>
-                <span>
+                <span className="truncate">{title}</span>
+                <span className="shrink-0">
                   Page {idx + 1} of {pages.length}
                 </span>
               </div>
@@ -278,7 +320,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
                 src={pageUrl}
                 alt={`${title} - Page ${idx + 1}`}
                 loading={idx < 3 ? "eager" : "lazy"}
-                className="w-full h-auto block select-none"
+                onError={() => setFailedPageCount((c) => c + 1)}
+                className="w-full h-auto block select-none bg-white min-h-[240px]"
               />
             </div>
           ))
@@ -293,7 +336,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
         >
           <div className="text-xs sm:text-sm text-center sm:text-left">
             🔥 <strong style={{ color: "#fbbf24" }}>Liked this Free Sample Paper &amp; Step-by-Step Solutions?</strong>{" "}
-            Get the remaining <strong>9 Full-Length Class 6 Super 9 Mock Papers</strong> for just{" "}
+            Get the remaining <strong>9 Full-Length {isClass9 ? "Class 9" : "Class 6"} Super 9 Mock Papers</strong> for just{" "}
             <strong style={{ color: "#fbbf24" }}>₹99</strong>!
           </div>
           <button

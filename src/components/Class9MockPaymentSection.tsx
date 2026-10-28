@@ -1438,6 +1438,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         isFreeSample={activePdfModal?.isFreeSample}
         token={activePdfModal?.token}
         email={activePdfModal?.email}
+        onUnlockSuper9={!verifiedPurchase ? () => handleOpenPayNowModal("qr") : undefined}
       />
     </div>
   );

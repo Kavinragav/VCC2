@@ -46,7 +46,7 @@ app.get("/lovable-uploads/:filename", (req: Request, res: Response, next: NextFu
     return res.sendFile(distPath);
   }
 
-  return res.redirect(302, `https://www.vivekanandhasainik.in/lovable-uploads/${encodeURIComponent(filename)}`);
+  return res.redirect(302, `https://sainik-school-prep-hub-30.lovable.app/lovable-uploads/${encodeURIComponent(filename)}`);
 });
 
 // ==========================================
