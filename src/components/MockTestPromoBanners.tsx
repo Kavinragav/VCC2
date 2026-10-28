@@ -1,5 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
+import { buildApiUrl } from "../config/api";
 
 export interface PromoProps {
   React?: typeof React;
@@ -104,7 +105,7 @@ export const HomeMockTestShowcase: React.FC<PromoProps> = (props) => {
                     setActiveSample({
                       paperId: "c6-free-sample",
                       title: "AISSEE Class 6 Free Sample Mock Paper #1 (With Solutions)",
-                      downloadUrl: "/api/sample/class-6-free-mock?download=1",
+                      downloadUrl: buildApiUrl("/api/sample/class-6-free-mock?download=1"),
                       downloadFilename: "AISSEE_Class_6_Free_Sample_Mock_Paper_With_Solutions.pdf",
                     })
                   }
@@ -183,7 +184,7 @@ export const HomeMockTestShowcase: React.FC<PromoProps> = (props) => {
                     setActiveSample({
                       paperId: "c9-free-sample",
                       title: "AISSEE Class 9 Free Sample Mock Paper (With Answer Key & Solutions)",
-                      downloadUrl: "/api/sample/class-9-free-mock?download=1",
+                      downloadUrl: buildApiUrl("/api/sample/class-9-free-mock?download=1"),
                       downloadFilename: "AISSEE_Class_9_Free_Sample_Mock_Paper_With_Solutions.pdf",
                     })
                   }
@@ -244,8 +245,8 @@ export const CourseMockTestCallout: React.FC<PromoProps> = (props) => {
   const targetHref = isClass6 ? "/blog/class-6-aissee-pyqs" : "/blog/class-9-aissee-mock-tests-pyqs";
   const samplePaperId = isClass6 ? "c6-free-sample" : "c9-free-sample";
   const sampleDownloadUrl = isClass6
-    ? "/api/sample/class-6-free-mock?download=1"
-    : "/api/sample/class-9-free-mock?download=1";
+    ? buildApiUrl("/api/sample/class-6-free-mock?download=1")
+    : buildApiUrl("/api/sample/class-9-free-mock?download=1");
   const sampleDownloadName = isClass6
     ? "AISSEE_Class_6_Free_Sample_Mock_Paper_With_Solutions.pdf"
     : "AISSEE_Class_9_Free_Sample_Mock_Paper_With_Solutions.pdf";

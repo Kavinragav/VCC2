@@ -1,5 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
+import { buildApiUrl } from "../config/api";
 
 interface MockPaper {
   id: string;
@@ -107,7 +108,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     if (!email) return;
     if (!silent) setIsLoadingStatus(true);
     try {
-      const res = await fetch(`/api/student/status?email=${encodeURIComponent(email)}`);
+      const res = await fetch(buildApiUrl(`/api/student/status?email=${encodeURIComponent(email)}`));
       const data = await res.json();
       if (res.ok && data.success) {
         setPurchases(Array.isArray(data.purchases) ? data.purchases : []);
@@ -133,7 +134,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   }, []);
 
   R.useEffect(() => {
-    fetch("/api/auth/config")
+    fetch(buildApiUrl("/api/auth/config"))
       .then((res) => res.json())
       .then((data) => {
         if (data.googleClientId) {
@@ -157,7 +158,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setIsSigningIn(true);
     setAuthError(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential }),
@@ -227,7 +228,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setIsSigningIn(true);
     setAuthError(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -635,9 +636,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                           setActivePdfModal({
                                             paperId: paper.id,
                                             title: paper.title,
-                                            downloadUrl: `/api/download/${paper.id}?token=${encodeURIComponent(
-                                              purchase.accessToken
-                                            )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                            downloadUrl: buildApiUrl(
+                                              `/api/download/${paper.id}?token=${encodeURIComponent(
+                                                purchase.accessToken
+                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                            ),
                                             downloadFilename:
                                               purchase.classType === "class-6"
                                                 ? `AISSEE_Class_6_Super9_Mock_Paper_0${paper.paperNumber}_With_Solutions.pdf`
@@ -660,9 +663,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                         disabled={downloadingId === paper.id}
                                         onClick={() =>
                                           downloadPdfViaBlob(
-                                            `/api/download/${paper.id}?token=${encodeURIComponent(
-                                              purchase.accessToken
-                                            )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                            buildApiUrl(
+                                              `/api/download/${paper.id}?token=${encodeURIComponent(
+                                                purchase.accessToken
+                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                            ),
                                             purchase.classType === "class-6"
                                               ? `AISSEE_Class_6_Super9_Mock_Paper_0${paper.paperNumber}_With_Solutions.pdf`
                                               : `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_With_Solutions.pdf`,
@@ -686,9 +691,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                             setActivePdfModal({
                                               paperId: `${paper.id}-question`,
                                               title: `Class 9 Mock #${paper.paperNumber} — Question Paper`,
-                                              downloadUrl: `/api/download/${paper.id}-question?token=${encodeURIComponent(
-                                                purchase.accessToken
-                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                              downloadUrl: buildApiUrl(
+                                                `/api/download/${paper.id}-question?token=${encodeURIComponent(
+                                                  purchase.accessToken
+                                                )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                              ),
                                               downloadFilename: `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Questions.pdf`,
                                               token: purchase.accessToken,
                                               email: purchase.email,
@@ -704,9 +711,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                           disabled={downloadingId === `${paper.id}-question`}
                                           onClick={() =>
                                             downloadPdfViaBlob(
-                                              `/api/download/${paper.id}-question?token=${encodeURIComponent(
-                                                purchase.accessToken
-                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                              buildApiUrl(
+                                                `/api/download/${paper.id}-question?token=${encodeURIComponent(
+                                                  purchase.accessToken
+                                                )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                              ),
                                               `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Questions.pdf`,
                                               (loading) =>
                                                 setDownloadingId(loading ? `${paper.id}-question` : null)
@@ -726,9 +735,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                             setActivePdfModal({
                                               paperId: `${paper.id}-solution`,
                                               title: `Class 9 Mock #${paper.paperNumber} — Step-by-Step Solutions`,
-                                              downloadUrl: `/api/download/${paper.id}-solution?token=${encodeURIComponent(
-                                                purchase.accessToken
-                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                              downloadUrl: buildApiUrl(
+                                                `/api/download/${paper.id}-solution?token=${encodeURIComponent(
+                                                  purchase.accessToken
+                                                )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                              ),
                                               downloadFilename: `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Solutions.pdf`,
                                               token: purchase.accessToken,
                                               email: purchase.email,
@@ -744,9 +755,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                                           disabled={downloadingId === `${paper.id}-solution`}
                                           onClick={() =>
                                             downloadPdfViaBlob(
-                                              `/api/download/${paper.id}-solution?token=${encodeURIComponent(
-                                                purchase.accessToken
-                                              )}&email=${encodeURIComponent(purchase.email)}&download=1`,
+                                              buildApiUrl(
+                                                `/api/download/${paper.id}-solution?token=${encodeURIComponent(
+                                                  purchase.accessToken
+                                                )}&email=${encodeURIComponent(purchase.email)}&download=1`
+                                              ),
                                               `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Solutions.pdf`,
                                               (loading) =>
                                                 setDownloadingId(loading ? `${paper.id}-solution` : null)
@@ -895,7 +908,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                           setActivePdfModal({
                             paperId: "c6-free-sample",
                             title: "AISSEE Class 6 Free Sample Mock Paper #1 (With Solutions)",
-                            downloadUrl: "/api/sample/class-6-free-mock?download=1",
+                            downloadUrl: buildApiUrl("/api/sample/class-6-free-mock?download=1"),
                             downloadFilename: "AISSEE_Class_6_Free_Sample_Mock_Paper_With_Solutions.pdf",
                             isFreeSample: true,
                           })
@@ -949,7 +962,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                           setActivePdfModal({
                             paperId: "c9-free-sample",
                             title: "AISSEE Class 9 Free Sample Full-Length Mock Paper (With Solutions)",
-                            downloadUrl: "/api/sample/class-9-free-mock?download=1",
+                            downloadUrl: buildApiUrl("/api/sample/class-9-free-mock?download=1"),
                             downloadFilename: "AISSEE_Class_9_Free_Sample_Mock_Paper_With_Solutions.pdf",
                             isFreeSample: true,
                           })

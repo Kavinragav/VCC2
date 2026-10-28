@@ -1,5 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
+import { buildApiUrl } from "../config/api";
 
 declare global {
   interface Window {
@@ -176,7 +177,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
       ? `token=${encodeURIComponent(token)}`
       : `email=${encodeURIComponent(email)}&classType=class-6`;
 
-    fetch(`/api/access-portal?${query}`)
+    fetch(buildApiUrl(`/api/access-portal?${query}`))
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("No active purchase");
@@ -205,7 +206,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
       })
       .catch(() => {
         if (email) {
-          fetch(`/api/student/status?email=${encodeURIComponent(email)}&classType=class-6`)
+          fetch(buildApiUrl(`/api/student/status?email=${encodeURIComponent(email)}&classType=class-6`))
             .then((res) => res.json())
             .then((statusData) => {
               if (statusData.success) {
@@ -223,7 +224,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
   }, []);
 
   R.useEffect(() => {
-    fetch("/api/auth/config")
+    fetch(buildApiUrl("/api/auth/config"))
       .then((res) => res.json())
       .then((data) => {
         setPaymentConfig({
@@ -299,7 +300,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential, classType: "class-6" }),
@@ -335,7 +336,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -380,7 +381,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
 
     if (data.hasPurchased && data.purchase) {
       localStorage.setItem("vcc_c6_access_token", data.purchase.accessToken);
-      fetch(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}`)
+      fetch(buildApiUrl(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}`))
         .then((res) => res.json())
         .then((portalData) => {
           if (portalData.success) {
@@ -454,7 +455,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/access-requests/submit", {
+      const res = await fetch(buildApiUrl("/api/access-requests/submit"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -537,7 +538,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
                 setActivePdfModal({
                   paperId: "c6-free-sample",
                   title: "AISSEE Class 6 Free Sample Mock Paper #1 (With Solutions)",
-                  downloadUrl: "/api/sample/class-6-free-mock?download=1",
+                  downloadUrl: buildApiUrl("/api/sample/class-6-free-mock?download=1"),
                   downloadFilename: "AISSEE_Class_6_Free_Sample_Mock_Paper_With_Solutions.pdf",
                   isFreeSample: true,
                 })
@@ -557,7 +558,7 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
               disabled={downloadingId === "c6-free-sample"}
               onClick={() =>
                 downloadPdfViaBlob(
-                  "/api/sample/class-6-free-mock?download=1",
+                  buildApiUrl("/api/sample/class-6-free-mock?download=1"),
                   "AISSEE_Class_6_Free_Sample_Mock_Paper_With_Solutions.pdf",
                   (loading) => setDownloadingId(loading ? "c6-free-sample" : null)
                 )
@@ -631,9 +632,11 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
 
           <div className="grid md:grid-cols-3 gap-4 mb-8">
             {verifiedPurchase.package.papers.map((paper) => {
-              const dlUrl = `/api/download/${paper.id}?token=${encodeURIComponent(
-                verifiedPurchase.accessToken
-              )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`;
+              const dlUrl = buildApiUrl(
+                `/api/download/${paper.id}?token=${encodeURIComponent(
+                  verifiedPurchase.accessToken
+                )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`
+              );
               const dlName = `AISSEE_Class_6_Super9_Mock_Paper_0${paper.paperNumber}_With_Solutions.pdf`;
 
               return (

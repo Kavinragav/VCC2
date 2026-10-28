@@ -1,5 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
+import { buildApiUrl } from "../config/api";
 
 declare global {
   interface Window {
@@ -170,7 +171,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
       ? `token=${encodeURIComponent(token)}`
       : `email=${encodeURIComponent(email)}&classType=class-9`;
 
-    fetch(`/api/access-portal?${query}`)
+    fetch(buildApiUrl(`/api/access-portal?${query}`))
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("No active purchase");
@@ -199,7 +200,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
       })
       .catch(() => {
         if (email) {
-          fetch(`/api/student/status?email=${encodeURIComponent(email)}&classType=class-9`)
+          fetch(buildApiUrl(`/api/student/status?email=${encodeURIComponent(email)}&classType=class-9`))
             .then((res) => res.json())
             .then((statusData) => {
               if (statusData.success) {
@@ -217,7 +218,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
   }, []);
 
   R.useEffect(() => {
-    fetch("/api/auth/config")
+    fetch(buildApiUrl("/api/auth/config"))
       .then((res) => res.json())
       .then((data) => {
         setPaymentConfig({
@@ -292,7 +293,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential, classType: "class-9" }),
@@ -328,7 +329,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(buildApiUrl("/api/auth/google"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -373,7 +374,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
 
     if (data.hasPurchased && data.purchase) {
       localStorage.setItem("vcc_c9_access_token", data.purchase.accessToken);
-      fetch(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}`)
+      fetch(buildApiUrl(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}`))
         .then((res) => res.json())
         .then((portalData) => {
           if (portalData.success) {
@@ -447,7 +448,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/access-requests/submit", {
+      const res = await fetch(buildApiUrl("/api/access-requests/submit"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -531,7 +532,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                 setActivePdfModal({
                   paperId: "c9-free-sample",
                   title: "AISSEE Class 9 Free Sample Full-Length Mock Paper (With Answer Key & Solutions)",
-                  downloadUrl: "/api/sample/class-9-free-mock?download=1",
+                  downloadUrl: buildApiUrl("/api/sample/class-9-free-mock?download=1"),
                   downloadFilename: "AISSEE_Class_9_Free_Sample_Mock_Paper_With_Solutions.pdf",
                   isFreeSample: true,
                 })
@@ -551,7 +552,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
               disabled={downloadingId === "c9-free-sample"}
               onClick={() =>
                 downloadPdfViaBlob(
-                  "/api/sample/class-9-free-mock?download=1",
+                  buildApiUrl("/api/sample/class-9-free-mock?download=1"),
                   "AISSEE_Class_9_Free_Sample_Mock_Paper_With_Solutions.pdf",
                   (loading) => setDownloadingId(loading ? "c9-free-sample" : null)
                 )
@@ -628,15 +629,21 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
               const isSeparate = paper.paperNumber <= 4;
               const qPaperId = `${paper.id}-question`;
               const sPaperId = `${paper.id}-solution`;
-              const qDlUrl = `/api/download/${qPaperId}?token=${encodeURIComponent(
-                verifiedPurchase.accessToken
-              )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`;
-              const sDlUrl = `/api/download/${sPaperId}?token=${encodeURIComponent(
-                verifiedPurchase.accessToken
-              )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`;
-              const combinedDlUrl = `/api/download/${paper.id}?token=${encodeURIComponent(
-                verifiedPurchase.accessToken
-              )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`;
+              const qDlUrl = buildApiUrl(
+                `/api/download/${qPaperId}?token=${encodeURIComponent(
+                  verifiedPurchase.accessToken
+                )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`
+              );
+              const sDlUrl = buildApiUrl(
+                `/api/download/${sPaperId}?token=${encodeURIComponent(
+                  verifiedPurchase.accessToken
+                )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`
+              );
+              const combinedDlUrl = buildApiUrl(
+                `/api/download/${paper.id}?token=${encodeURIComponent(
+                  verifiedPurchase.accessToken
+                )}&email=${encodeURIComponent(verifiedPurchase.customer.email)}&download=1`
+              );
 
               const qDlName = `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Questions.pdf`;
               const sDlName = `AISSEE_Class_9_Super9_Mock_Paper_0${paper.paperNumber}_Solutions.pdf`;

@@ -1,4 +1,5 @@
 import React from "react";
+import { buildApiUrl } from "../config/api";
 
 interface AdminStats {
   totalRevenue: number;
@@ -133,10 +134,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       const headers = { Authorization: `Bearer ${adminToken}` };
 
       const [statsRes, requestsRes, purchasesRes, studentsRes] = await Promise.all([
-        fetch("/api/admin/stats", { headers }),
-        fetch("/api/admin/access-requests", { headers }),
-        fetch("/api/admin/purchases", { headers }),
-        fetch("/api/admin/students", { headers }),
+        fetch(buildApiUrl("/api/admin/stats"), { headers }),
+        fetch(buildApiUrl("/api/admin/access-requests"), { headers }),
+        fetch(buildApiUrl("/api/admin/purchases"), { headers }),
+        fetch(buildApiUrl("/api/admin/students"), { headers }),
       ]);
 
       if (statsRes.status === 401 || purchasesRes.status === 401) {
@@ -179,7 +180,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setDecisionLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/admin/approve-request", {
+      const res = await fetch(buildApiUrl("/api/admin/approve-request"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -210,7 +211,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setDecisionLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/admin/reject-request", {
+      const res = await fetch(buildApiUrl("/api/admin/reject-request"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -247,7 +248,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setGrantLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/admin/grant-access", {
+      const res = await fetch(buildApiUrl("/api/admin/grant-access"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -286,7 +287,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   // Revoke Access
   const handleRevokeAccess = async (purchase: PurchaseItem) => {
     try {
-      const res = await fetch("/api/admin/revoke-access", {
+      const res = await fetch(buildApiUrl("/api/admin/revoke-access"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -312,7 +313,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
   const handleExportCSV = () => {
     const link = document.createElement("a");
-    link.href = `/api/admin/export?adminToken=${encodeURIComponent(adminToken)}`;
+    link.href = buildApiUrl(`/api/admin/export?adminToken=${encodeURIComponent(adminToken)}`);
     link.target = "_blank";
     link.rel = "noreferrer";
     document.body.appendChild(link);

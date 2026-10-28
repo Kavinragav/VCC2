@@ -1,5 +1,6 @@
 import React from "react";
 import AdminDashboard from "./AdminDashboard";
+import { buildApiUrl } from "../config/api";
 
 declare global {
   interface Window {
@@ -42,7 +43,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
   // Verify existing session token on mount
   R.useEffect(() => {
     if (adminToken) {
-      fetch("/api/admin/verify-session", {
+      fetch(buildApiUrl("/api/admin/verify-session"), {
         headers: { Authorization: `Bearer ${adminToken}` },
       })
         .then((res) => res.json())
@@ -68,7 +69,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await fetch(buildApiUrl("/api/admin/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

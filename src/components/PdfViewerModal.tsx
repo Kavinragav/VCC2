@@ -1,4 +1,5 @@
 import React from "react";
+import { buildApiUrl } from "../config/api";
 
 export async function downloadPdfViaBlob(
   url: string,
@@ -7,7 +8,7 @@ export async function downloadPdfViaBlob(
 ) {
   try {
     if (onStatusChange) onStatusChange(true, null);
-    const res = await fetch(url, {
+    const res = await fetch(buildApiUrl(url), {
       method: "GET",
       credentials: "include",
     });
@@ -89,7 +90,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
     if (token) query.set("token", token);
     if (email) query.set("email", email);
 
-    fetch(`/api/pdf-pages/${encodeURIComponent(paperId)}?${query.toString()}`, {
+    fetch(buildApiUrl(`/api/pdf-pages/${encodeURIComponent(paperId)}?${query.toString()}`), {
       credentials: "include",
     })
       .then(async (res) => {
@@ -101,7 +102,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = (props) => {
       })
       .then((data) => {
         if (data.success && Array.isArray(data.pages)) {
-          setPages(data.pages);
+          setPages(data.pages.map((pagePath: string) => buildApiUrl(pagePath)));
         } else {
           setLoadError(data.message || "Could not load paper preview.");
         }
