@@ -142,9 +142,31 @@
   <!-- ===================================================================== -->
   <url>
     <loc>https://www.vivekanandhasainik.in/blog</loc>
-    <lastmod>2026-04-19</lastmod>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.92</priority>
+    <priority>0.95</priority>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/tamil-nadu-aissee-2026-achievers</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.98</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/aissee2026-class6-result-banner.png</image:loc>
+      <image:title>Tamil Nadu AISSEE 2026 Achievers – Vivekanandha Sainik Coaching Centre</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://www.vivekanandhasainik.in/blog/sainik-school-admission-2027-application-form-dates-eligibility</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+    <image:image>
+      <image:loc>https://www.vivekanandhasainik.in/lovable-uploads/prep-strategy-blog.jpg</image:loc>
+      <image:title>Sainik School Admission 2027 Application Form Dates Eligibility</image:title>
+    </image:image>
   </url>
 
   <url>
@@ -246,33 +268,6 @@
   <!-- ===================================================================== -->
   <!-- 5. CLASS 9 MOCK TESTS & PYQ RESOURCES (ORDERED NEWEST FIRST)          -->
   <!-- ===================================================================== -->
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-mock-1</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-mock-2</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-mock-3</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://www.vivekanandhasainik.in/resources/class9-mock-4</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
 
   <url>
     <loc>https://www.vivekanandhasainik.in/resources/class9-pyq-2025</loc>
