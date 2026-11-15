@@ -1,6 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
-import { buildApiUrl } from "../config/api";
+import { apiFetch, buildApiUrl, safeResponseJson } from "../config/api";
 
 interface MockPaper {
   id: string;
@@ -108,9 +108,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     if (!email) return;
     if (!silent) setIsLoadingStatus(true);
     try {
-      const res = await fetch(buildApiUrl(`/api/student/status?email=${encodeURIComponent(email)}`));
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const res = await apiFetch(`/api/student/status?email=${encodeURIComponent(email)}`);
+      const data = await safeResponseJson(res);
+      if (res.ok && data?.success) {
         setPurchases(Array.isArray(data.purchases) ? data.purchases : []);
         setRequests(Array.isArray(data.allRequests) ? data.allRequests : []);
         setLastRefreshed(new Date().toLocaleTimeString());
@@ -134,10 +134,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   }, []);
 
   R.useEffect(() => {
-    fetch(buildApiUrl("/api/auth/config"))
-      .then((res) => res.json())
+    apiFetch("/api/auth/config")
+      .then((res) => safeResponseJson(res))
       .then((data) => {
-        if (data.googleClientId) {
+        if (data?.googleClientId) {
           setGoogleClientId(data.googleClientId);
         }
       })
@@ -158,16 +158,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setIsSigningIn(true);
     setAuthError(null);
     try {
-      const res = await fetch(buildApiUrl("/api/auth/google"), {
+      const res = await apiFetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential }),
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.student) {
+      const data = await safeResponseJson(res);
+      if (res.ok && data?.success && data.student) {
         saveAndSetStudent(data.student);
       } else {
-        setAuthError(data.message || "Google sign-in failed. Please try again.");
+        setAuthError(data?.message || "Google sign-in failed. Please try again.");
       }
     } catch {
       setAuthError("Network error during Google sign-in.");
@@ -228,7 +228,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setIsSigningIn(true);
     setAuthError(null);
     try {
-      const res = await fetch(buildApiUrl("/api/auth/google"), {
+      const res = await apiFetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -238,11 +238,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
           },
         }),
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.student) {
+      const data = await safeResponseJson(res);
+      if (res.ok && data?.success && data.student) {
         saveAndSetStudent(data.student);
       } else {
-        setAuthError(data.message || "Unable to sign in. Please check your details.");
+        setAuthError(data?.message || "Unable to sign in. Please check your details.");
       }
     } catch {
       setAuthError("Network error while signing in.");

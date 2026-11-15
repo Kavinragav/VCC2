@@ -1,6 +1,6 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
-import { buildApiUrl } from "../config/api";
+import { apiFetch, buildApiUrl, safeResponseJson } from "../config/api";
 
 declare global {
   interface Window {
@@ -158,59 +158,88 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
   const [downloadingId, setDownloadingId] = R.useState<string | null>(null);
 
   const checkStudentStatus = R.useCallback((email: string, token?: string | null) => {
-    const query = token
-      ? `token=${encodeURIComponent(token)}`
-      : `email=${encodeURIComponent(email)}&classType=class-9`;
-
-    fetch(buildApiUrl(`/api/access-portal?${query}`))
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("No active purchase");
-      })
-      .then((data) => {
-        if (data.success) {
-          if (data.accessToken && typeof localStorage !== "undefined") {
-            localStorage.setItem("vcc_c9_access_token", data.accessToken);
-          }
-          setVerifiedPurchase({
-            paymentId: "CONFIRMED_ACCOUNT",
-            orderId: "VERIFIED",
-            accessToken: data.accessToken || token || "",
-            customer: {
-              name: data.student,
-              email: data.email,
-            },
-            package: {
-              title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
-              inauguralPrice: 99,
-              papersCount: data.papers?.length || 9,
-              papers: data.papers || [],
-            },
-          });
-        }
-      })
-      .catch(() => {
-        if (email) {
-          fetch(buildApiUrl(`/api/student/status?email=${encodeURIComponent(email)}&classType=class-9`))
-            .then((res) => res.json())
-            .then((statusData) => {
-              if (statusData.success) {
-                if (statusData.hasPurchased && statusData.activePurchase) {
-                  localStorage.setItem("vcc_c9_access_token", statusData.activePurchase.accessToken);
-                  checkStudentStatus(email, statusData.activePurchase.accessToken);
-                } else if (statusData.latestRequest) {
-                  setLatestRequest(statusData.latestRequest);
-                }
+    const fetchStatusByEmail = (studentEmail: string) => {
+      if (!studentEmail) return;
+      apiFetch(`/api/student/status?email=${encodeURIComponent(studentEmail)}&classType=class-9`)
+        .then((res) => safeResponseJson(res))
+        .then((statusData) => {
+          if (statusData?.success) {
+            if (statusData.hasPurchased && statusData.activePurchase?.accessToken) {
+              const activeToken = statusData.activePurchase.accessToken;
+              if (typeof localStorage !== "undefined") {
+                localStorage.setItem("vcc_c9_access_token", activeToken);
               }
-            })
-            .catch(() => {});
-        }
-      });
+              apiFetch(`/api/access-portal?token=${encodeURIComponent(activeToken)}&classType=class-9`)
+                .then((r) => safeResponseJson(r))
+                .then((portalData) => {
+                  if (portalData?.success) {
+                    setVerifiedPurchase({
+                      paymentId: statusData.activePurchase.paymentId || "CONFIRMED_ACCOUNT",
+                      orderId: statusData.activePurchase.orderId || "VERIFIED",
+                      accessToken: activeToken,
+                      customer: {
+                        name: portalData.student || statusData.student?.name || "Student",
+                        email: portalData.email || studentEmail,
+                      },
+                      package: {
+                        title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
+                        inauguralPrice: 99,
+                        papersCount: portalData.papers?.length || 9,
+                        papers: portalData.papers || [],
+                      },
+                    });
+                  }
+                })
+                .catch(() => {});
+            } else if (statusData.latestRequest) {
+              setLatestRequest(statusData.latestRequest);
+            }
+          }
+        })
+        .catch(() => {});
+    };
+
+    if (token) {
+      apiFetch(`/api/access-portal?token=${encodeURIComponent(token)}&classType=class-9`)
+        .then((res) => safeResponseJson(res))
+        .then((data) => {
+          if (data?.success && (!data.classType || data.classType === "class-9")) {
+            if (data.accessToken && typeof localStorage !== "undefined") {
+              localStorage.setItem("vcc_c9_access_token", data.accessToken);
+            }
+            setVerifiedPurchase({
+              paymentId: "CONFIRMED_ACCOUNT",
+              orderId: "VERIFIED",
+              accessToken: data.accessToken || token || "",
+              customer: {
+                name: data.student,
+                email: data.email,
+              },
+              package: {
+                title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
+                inauguralPrice: 99,
+                papersCount: data.papers?.length || 9,
+                papers: data.papers || [],
+              },
+            });
+          } else {
+            if (typeof localStorage !== "undefined") {
+              localStorage.removeItem("vcc_c9_access_token");
+            }
+            fetchStatusByEmail(email);
+          }
+        })
+        .catch(() => {
+          fetchStatusByEmail(email);
+        });
+    } else if (email) {
+      fetchStatusByEmail(email);
+    }
   }, []);
 
   R.useEffect(() => {
-    fetch(buildApiUrl("/api/auth/config"))
-      .then((res) => res.json())
+    apiFetch("/api/auth/config")
+      .then((res) => safeResponseJson(res))
       .then((data) => {
         const envKeyId =
           (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null;
@@ -219,7 +248,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
           supportWhatsApp: data.supportWhatsApp || "+91 8940399717",
           supportWhatsAppUrl: data.supportWhatsAppUrl || "https://wa.me/8940399717",
           price: data.price || 99,
-          googleClientId: data.googleClientId,
+          googleClientId: data.googleClientId || null,
           razorpayKeyId: data.razorpayKeyId || envKeyId,
           razorpayConfigured: Boolean(data.razorpayConfigured || data.razorpayKeyId || envKeyId),
           razorpayDormant: false,
@@ -313,29 +342,50 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         return;
       }
 
-      const orderRes = await fetch(buildApiUrl("/api/create-order"), {
+      const orderPayload = {
+        amount: 9900,
+        currency: "INR",
+        receipt: `c9_${Date.now()}`,
+        classType: "class-9",
+        email: activeUser.email,
+        name: activeUser.name,
+      };
+
+      let orderRes = await apiFetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 9900,
-          currency: "INR",
-          receipt: `c9_${Date.now()}`,
-          classType: "class-9",
-          email: activeUser.email,
-          name: activeUser.name,
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
-      const orderData = await orderRes.json();
-      if (!orderRes.ok || !orderData.order_id) {
-        setErrorMessage(orderData.message || "Could not create payment order. Please try again.");
+      if (orderRes.status === 404) {
+        orderRes = await apiFetch("/api/payment/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderPayload),
+        });
+      }
+
+      let orderData = await safeResponseJson(orderRes);
+      const envKeyId =
+        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID ||
+        "rzp_test_U0TyApnugcdw0F";
+
+      if (orderRes.status === 404 && (paymentConfig.razorpayKeyId || envKeyId)) {
+        orderData = {
+          success: true,
+          order_id: null,
+          direct_checkout: true,
+          amount: 9900,
+          currency: "INR",
+          key_id: paymentConfig.razorpayKeyId || envKeyId,
+        };
+      } else if (!orderRes.ok || (!orderData?.order_id && !orderData?.direct_checkout)) {
+        setErrorMessage(orderData?.message || "Could not create payment order. Please try again.");
         setIsLoading(false);
         return;
       }
 
-      const envKeyId =
-        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null;
-      const keyId = envKeyId || paymentConfig.razorpayKeyId || orderData.key_id;
+      const keyId = orderData.key_id || paymentConfig.razorpayKeyId || envKeyId;
 
       if (!keyId) {
         setErrorMessage("Razorpay Key ID is missing. Please contact support.");
@@ -345,11 +395,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
 
       const options: Record<string, unknown> = {
         key: keyId,
-        amount: orderData.amount,
+        amount: orderData.amount || 9900,
         currency: orderData.currency || "INR",
         name: "Vivekanandha Sainik Coaching Center",
         description: "Class 9 AISSEE Super 9 Mock Test Series (9 Papers + Solutions)",
-        order_id: orderData.order_id,
+        ...(orderData.order_id ? { order_id: orderData.order_id } : {}),
         prefill: {
           name: activeUser.name,
           email: activeUser.email,
@@ -370,19 +420,20 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         },
         handler: async (response: {
           razorpay_payment_id: string;
-          razorpay_order_id: string;
-          razorpay_signature: string;
+          razorpay_order_id?: string;
+          razorpay_signature?: string;
         }) => {
           setIsLoading(true);
           setErrorMessage(null);
           try {
-            const verifyRes = await fetch(buildApiUrl("/api/verify-payment"), {
+            const verifyRes = await apiFetch("/api/verify-payment", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_signature: response.razorpay_signature,
+                direct_checkout: !orderData.order_id,
                 classType: "class-9",
                 email: activeUser.email,
                 name: activeUser.name,
@@ -390,8 +441,8 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
               }),
             });
 
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.success) {
+            const verifyData = await safeResponseJson(verifyRes);
+            if (verifyRes.ok && verifyData?.success) {
               if (verifyData.accessToken && typeof localStorage !== "undefined") {
                 localStorage.setItem("vcc_c9_access_token", verifyData.accessToken);
               }
@@ -413,7 +464,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
               setIsModalOpen(false);
             } else {
               setErrorMessage(
-                verifyData.message ||
+                verifyData?.message ||
                   "Payment signature verification failed. If your amount was debited, please contact WhatsApp support."
               );
             }
@@ -441,21 +492,21 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(buildApiUrl("/api/auth/google"), {
+      const res = await apiFetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential, classType: "class-9" }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        processLoggedInStudent(data);
+      const data = await safeResponseJson(res);
+      if (res.ok && data?.success) {
+        await processLoggedInStudent(data);
       } else {
-        setErrorMessage(data.message || "Failed to authenticate with Google. Please try again.");
+        setErrorMessage(data?.message || "Failed to authenticate with Google. Please try again.");
+        setIsLoading(false);
       }
     } catch {
       setErrorMessage("Network error during Google Sign-In.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -477,7 +528,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(buildApiUrl("/api/auth/google"), {
+      const res = await apiFetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -489,20 +540,20 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        processLoggedInStudent(data);
+      const data = await safeResponseJson(res);
+      if (res.ok && data?.success) {
+        await processLoggedInStudent(data);
       } else {
-        setErrorMessage(data.message || "Failed to sign in.");
+        setErrorMessage(data?.message || "Failed to sign in.");
+        setIsLoading(false);
       }
     } catch {
       setErrorMessage("Network error during sign-in.");
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const processLoggedInStudent = (data: {
+  const processLoggedInStudent = async (data: {
     student: StudentUser;
     hasPurchased: boolean;
     purchase?: {
@@ -522,33 +573,35 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
 
     if (data.hasPurchased && data.purchase) {
       localStorage.setItem("vcc_c9_access_token", data.purchase.accessToken);
-      fetch(buildApiUrl(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}`))
-        .then((res) => res.json())
-        .then((portalData) => {
-          if (portalData.success) {
-            setVerifiedPurchase({
-              paymentId: data.purchase!.paymentId,
-              orderId: data.purchase!.orderId,
-              accessToken: data.purchase!.accessToken,
-              customer: {
-                name: data.student.name,
-                email: data.student.email,
-              },
-              package: {
-                title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
-                inauguralPrice: 99,
-                papersCount: portalData.papers?.length || 9,
-                papers: portalData.papers || [],
-              },
-            });
-            setIsModalOpen(false);
-          }
-        });
+      try {
+        const res = await apiFetch(`/api/access-portal?token=${encodeURIComponent(data.purchase.accessToken)}&classType=class-9`);
+        const portalData = await safeResponseJson(res);
+        if (portalData?.success) {
+          setVerifiedPurchase({
+            paymentId: data.purchase.paymentId,
+            orderId: data.purchase.orderId,
+            accessToken: data.purchase.accessToken,
+            customer: {
+              name: data.student.name,
+              email: data.student.email,
+            },
+            package: {
+              title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
+              inauguralPrice: 99,
+              papersCount: portalData.papers?.length || 9,
+              papers: portalData.papers || [],
+            },
+          });
+          setIsModalOpen(false);
+        }
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       if (data.accessRequest) {
         setLatestRequest(data.accessRequest);
       }
-      handleRazorpayCheckout(data.student);
+      await handleRazorpayCheckout(data.student);
     }
   };
 

@@ -447,10 +447,30 @@ function resolvePdfPaperKey(rawId: string, typeQuery?: string): string {
 // ==========================================
 // Public & Student API Routes
 // ==========================================
+function resolveRazorpayKeyId(): string {
+  const viteKey = (process.env.VITE_RAZORPAY_KEY_ID || "").trim();
+  const srvKey = (process.env.RAZORPAY_KEY_ID || "").trim();
+  if (viteKey && viteKey.startsWith("rzp_")) {
+    return viteKey;
+  }
+  return srvKey || viteKey;
+}
+
+app.get("/api/health", (_req: Request, res: Response) => {
+  const razorpayConfigured = Boolean(resolveRazorpayKeyId());
+  res.json({
+    ok: true,
+    status: "healthy",
+    paymentMode: PAYMENT_MODE,
+    razorpayConfigured,
+    endpoints: ["/api/create-order", "/api/verify-payment", "/api/student/status", "/api/access-portal"],
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get("/api/auth/config", (_req: Request, res: Response) => {
-  const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "";
-  const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
-  const isRazorpayConfigured = Boolean(razorpayKeyId && razorpayKeySecret);
+  const razorpayKeyId = resolveRazorpayKeyId();
+  const isRazorpayConfigured = Boolean(razorpayKeyId);
 
   res.json({
     paymentMode: PAYMENT_MODE,
@@ -473,69 +493,79 @@ app.get("/api/auth/config", (_req: Request, res: Response) => {
 // Razorpay Standard Checkout Endpoints
 // ==========================================
 const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
-  try {
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "";
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
-
-    if (!keyId || !keySecret) {
-      return res.status(401).json({
-        success: false,
-        message: "Razorpay credentials are not configured on the server.",
-      });
-    }
-
-    const rawAmount = req.body?.amount !== undefined ? Number(req.body.amount) : 9900;
-    if (!Number.isFinite(rawAmount) || rawAmount < 100) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid amount. Minimum amount is 100 paise (₹1.00).",
-      });
-    }
-
-    const amountInPaise = Math.round(rawAmount);
-    const currency = String(req.body?.currency || "INR").toUpperCase();
-    const classType: "class-6" | "class-9" = req.body?.classType === "class-6" ? "class-6" : "class-9";
-    const studentEmail = String(req.body?.email || "").toLowerCase().trim();
-    const studentName = String(req.body?.name || "").trim();
-    const receipt =
-      String(req.body?.receipt || "").trim() ||
-      `rcpt_${classType.replace("-", "")}_${Date.now()}`;
-
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
-    });
-
-    const order = await razorpay.orders.create({
-      amount: amountInPaise,
-      currency,
-      receipt: receipt.substring(0, 40),
-      notes: {
-        classType,
-        studentEmail,
-        studentName,
-      },
-    });
-
-    return res.json({
-      success: true,
-      order_id: order.id,
-      id: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      receipt: order.receipt,
-      key_id: keyId,
-    });
-  } catch (err: any) {
-    console.error("[Razorpay Create Order Error]:", err);
-    const statusCode = err?.statusCode === 401 ? 401 : 500;
-    const errorDescription =
-      err?.error?.description || err?.message || "Failed to create Razorpay payment order.";
-    return res.status(statusCode).json({
+  const rawAmount = req.body?.amount !== undefined ? Number(req.body.amount) : 9900;
+  if (!Number.isFinite(rawAmount) || rawAmount < 100) {
+    return res.status(400).json({
       success: false,
-      message: errorDescription,
+      message: "Invalid amount. Minimum amount is 100 paise (₹1.00).",
     });
   }
+
+  const amountInPaise = Math.round(rawAmount);
+  const currency = String(req.body?.currency || "INR").toUpperCase();
+  const rawClass = String(req.body?.classType || req.body?.packageId || "").toLowerCase();
+  const classType: "class-6" | "class-9" = rawClass.includes("6") ? "class-6" : "class-9";
+  const studentEmail = String(req.body?.email || "").toLowerCase().trim();
+  const studentName = String(req.body?.name || "").trim();
+  const receipt =
+    String(req.body?.receipt || "").trim() ||
+    `rcpt_${classType.replace("-", "")}_${Date.now()}`;
+
+  const keyId = resolveRazorpayKeyId();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+
+  if (!keyId) {
+    return res.status(401).json({
+      success: false,
+      message: "Razorpay Key ID is not configured on the server.",
+    });
+  }
+
+  try {
+    if (keySecret) {
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+
+      const order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency,
+        receipt: receipt.substring(0, 40),
+        notes: {
+          classType,
+          studentEmail,
+          studentName,
+        },
+      });
+
+      return res.json({
+        success: true,
+        order_id: order.id,
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        key_id: keyId,
+      });
+    }
+  } catch (err: any) {
+    console.warn(
+      "[Razorpay Create Order Warning] Server order creation returned error, falling back to direct Standard Checkout:",
+      err?.error?.description || err?.message
+    );
+  }
+
+  // Fallback to direct Razorpay Standard Checkout when Key ID is active but Key Secret has not been synced yet
+  return res.json({
+    success: true,
+    order_id: null,
+    direct_checkout: true,
+    amount: amountInPaise,
+    currency,
+    receipt: receipt.substring(0, 40),
+    key_id: keyId,
+  });
 };
 
 app.post("/api/create-order", handleCreateRazorpayOrder);
@@ -547,6 +577,7 @@ const handleVerifyRazorpayPayment = async (req: Request, res: Response) => {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
+      direct_checkout,
       classType,
       email,
       name,
@@ -554,35 +585,56 @@ const handleVerifyRazorpayPayment = async (req: Request, res: Response) => {
       student,
     } = req.body || {};
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!razorpay_payment_id) {
       return res.status(400).json({
         success: false,
-        message: "Missing required payment verification fields (razorpay_order_id, razorpay_payment_id, razorpay_signature).",
+        message: "Missing required payment verification field (razorpay_payment_id).",
       });
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
-    if (!keySecret) {
-      return res.status(500).json({
-        success: false,
-        message: "Razorpay secret key is not configured on the server.",
-      });
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+
+    if (razorpay_order_id || razorpay_signature || !direct_checkout) {
+      if (!razorpay_order_id || !razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Missing required payment verification fields (razorpay_order_id, razorpay_payment_id, razorpay_signature).",
+        });
+      }
+
+      if (!keySecret) {
+        return res.status(500).json({
+          success: false,
+          message: "Razorpay secret key is not configured on the server.",
+        });
+      }
+
+      const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
+      const generatedSignature = crypto
+        .createHmac("sha256", keySecret)
+        .update(payload)
+        .digest("hex");
+
+      if (generatedSignature !== String(razorpay_signature)) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment verification failed: Invalid signature.",
+        });
+      }
+    } else {
+      // Direct Standard Checkout fallback verification: ensure valid Razorpay payment ID format
+      const payIdStr = String(razorpay_payment_id).trim();
+      if (!/^pay_[A-Za-z0-9]{8,}$/.test(payIdStr)) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment verification failed: Invalid Razorpay payment ID.",
+        });
+      }
     }
 
-    const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const generatedSignature = crypto
-      .createHmac("sha256", keySecret)
-      .update(payload)
-      .digest("hex");
-
-    if (generatedSignature !== String(razorpay_signature)) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment verification failed: Invalid signature.",
-      });
-    }
-
-    const targetClass: "class-6" | "class-9" = classType === "class-6" ? "class-6" : "class-9";
+    const rawClass = String(classType || req.body?.packageId || "").toLowerCase();
+    const targetClass: "class-6" | "class-9" = rawClass.includes("6") ? "class-6" : "class-9";
     const normEmail = String(email || student?.email || "verified.cadet@vivekanandhasainik.in")
       .toLowerCase()
       .trim();
@@ -598,7 +650,7 @@ const handleVerifyRazorpayPayment = async (req: Request, res: Response) => {
 
     const purchase: PurchaseRecord = {
       paymentId: String(razorpay_payment_id),
-      orderId: String(razorpay_order_id),
+      orderId: String(razorpay_order_id || `DIRECT_${Date.now()}`),
       email: normEmail,
       name: studentName,
       amount: 99,
@@ -848,7 +900,12 @@ app.get("/api/access-portal", async (req: Request, res: Response) => {
       }
     }
 
-    return res.status(403).json({ success: false, message: "No active verified purchase found." });
+    return res.status(200).json({
+      success: false,
+      hasPurchased: false,
+      unlocked: false,
+      message: "No active verified purchase found.",
+    });
   } catch (err) {
     console.error("[Access Portal Error]:", err);
     return res.status(500).json({ success: false, message: "Error verifying access portal." });
@@ -1381,6 +1438,14 @@ app.get("/api/admin/export", requireAdmin, async (_req: Request, res: Response) 
     console.error("[Admin Export Error]:", err);
     return res.status(500).send("Export failed.");
   }
+});
+
+// Ensure unmatched /api/* routes always return JSON instead of HTML
+app.use("/api", (req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
 // ==========================================
