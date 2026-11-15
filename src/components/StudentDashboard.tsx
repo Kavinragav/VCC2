@@ -525,8 +525,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                     Tests Purchased &amp; Unlocked Materials
                   </h2>
                   <p className="text-xs" style={{ color: "#64748b" }}>
-                    Once the administrator approves your UPI payment, your 9 Mock Question Papers and Step-by-Step
-                    Solutions appear here automatically.
+                    Once your ₹99 payment is completed via Razorpay Checkout (or approved by an administrator), your 9
+                    Mock Question Papers and Step-by-Step Solutions appear here automatically.
                   </p>
                 </div>
               </div>
@@ -537,11 +537,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                   style={{ backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}
                 >
                   <div className="text-base font-extrabold" style={{ color: "#0f172a" }}>
-                    No Approved Mock Test Packages Yet
+                    No Unlocked Mock Test Packages Yet
                   </div>
                   <p className="text-xs max-w-lg mx-auto" style={{ color: "#64748b" }}>
-                    If you have already paid ₹99 via UPI and submitted your 12-digit UTR number, your request will be
-                    verified by the admin within 1 hour and your mock papers will unlock here automatically.
+                    Unlock the Class 6 or Class 9 Super 9 Full-Length Mock Test Series for ₹99 via Razorpay Standard
+                    Checkout to get instant access to all 9 Mock Papers and Step-by-Step Solutions here.
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                     <a

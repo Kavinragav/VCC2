@@ -1,9 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config({ override: true });
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
+import Razorpay from "razorpay";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,7 +86,7 @@ const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || "Kavin Ragav";
 const UPI_QR_IMAGE = process.env.UPI_QR_IMAGE_PATH || "/lovable-uploads/upi-payment-qr.jpg";
 const SUPPORT_WHATSAPP = "+91 8940399717";
 const SUPPORT_WHATSAPP_URL = "https://wa.me/8940399717";
-const PAYMENT_MODE = process.env.PAYMENT_MODE || "manual_upi";
+const PAYMENT_MODE = process.env.PAYMENT_MODE || "razorpay";
 
 
 // ==========================================
@@ -445,6 +448,10 @@ function resolvePdfPaperKey(rawId: string, typeQuery?: string): string {
 // Public & Student API Routes
 // ==========================================
 app.get("/api/auth/config", (_req: Request, res: Response) => {
+  const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "";
+  const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
+  const isRazorpayConfigured = Boolean(razorpayKeyId && razorpayKeySecret);
+
   res.json({
     paymentMode: PAYMENT_MODE,
     upiId: UPI_ID,
@@ -456,10 +463,181 @@ app.get("/api/auth/config", (_req: Request, res: Response) => {
     googleClientId:
       process.env.GOOGLE_CLIENT_ID ||
       "835720758781-s15sg4l7d11b4qm23vmjh8btaqik4fom.apps.googleusercontent.com",
-    razorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    razorpayKeyId,
+    razorpayConfigured: isRazorpayConfigured,
     razorpayDormant: PAYMENT_MODE !== "razorpay",
   });
 });
+
+// ==========================================
+// Razorpay Standard Checkout Endpoints
+// ==========================================
+const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
+  try {
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "";
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
+    if (!keyId || !keySecret) {
+      return res.status(401).json({
+        success: false,
+        message: "Razorpay credentials are not configured on the server.",
+      });
+    }
+
+    const rawAmount = req.body?.amount !== undefined ? Number(req.body.amount) : 9900;
+    if (!Number.isFinite(rawAmount) || rawAmount < 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid amount. Minimum amount is 100 paise (₹1.00).",
+      });
+    }
+
+    const amountInPaise = Math.round(rawAmount);
+    const currency = String(req.body?.currency || "INR").toUpperCase();
+    const classType: "class-6" | "class-9" = req.body?.classType === "class-6" ? "class-6" : "class-9";
+    const studentEmail = String(req.body?.email || "").toLowerCase().trim();
+    const studentName = String(req.body?.name || "").trim();
+    const receipt =
+      String(req.body?.receipt || "").trim() ||
+      `rcpt_${classType.replace("-", "")}_${Date.now()}`;
+
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency,
+      receipt: receipt.substring(0, 40),
+      notes: {
+        classType,
+        studentEmail,
+        studentName,
+      },
+    });
+
+    return res.json({
+      success: true,
+      order_id: order.id,
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      receipt: order.receipt,
+      key_id: keyId,
+    });
+  } catch (err: any) {
+    console.error("[Razorpay Create Order Error]:", err);
+    const statusCode = err?.statusCode === 401 ? 401 : 500;
+    const errorDescription =
+      err?.error?.description || err?.message || "Failed to create Razorpay payment order.";
+    return res.status(statusCode).json({
+      success: false,
+      message: errorDescription,
+    });
+  }
+};
+
+app.post("/api/create-order", handleCreateRazorpayOrder);
+app.post("/api/payment/create-order", handleCreateRazorpayOrder);
+
+const handleVerifyRazorpayPayment = async (req: Request, res: Response) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      classType,
+      email,
+      name,
+      picture,
+      student,
+    } = req.body || {};
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required payment verification fields (razorpay_order_id, razorpay_payment_id, razorpay_signature).",
+      });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+    if (!keySecret) {
+      return res.status(500).json({
+        success: false,
+        message: "Razorpay secret key is not configured on the server.",
+      });
+    }
+
+    const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const generatedSignature = crypto
+      .createHmac("sha256", keySecret)
+      .update(payload)
+      .digest("hex");
+
+    if (generatedSignature !== String(razorpay_signature)) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment verification failed: Invalid signature.",
+      });
+    }
+
+    const targetClass: "class-6" | "class-9" = classType === "class-6" ? "class-6" : "class-9";
+    const normEmail = String(email || student?.email || "verified.cadet@vivekanandhasainik.in")
+      .toLowerCase()
+      .trim();
+    const studentName = String(name || student?.name || normEmail.split("@")[0] || "Student Cadet").trim();
+    const studentPicture = picture || student?.picture;
+
+    const nowIso = new Date().toISOString();
+    const accessToken = createAccessToken(normEmail, targetClass, String(razorpay_payment_id));
+    const packageTitle =
+      targetClass === "class-6"
+        ? "Class 6 AISSEE 9-Mock Test Series & Step-by-Step Solutions"
+        : "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions";
+
+    const purchase: PurchaseRecord = {
+      paymentId: String(razorpay_payment_id),
+      orderId: String(razorpay_order_id),
+      email: normEmail,
+      name: studentName,
+      amount: 99,
+      currency: "INR",
+      verifiedAt: nowIso,
+      expiresAt: Date.now() + 180 * 24 * 60 * 60 * 1000,
+      status: "verified",
+      accessToken,
+      method: "razorpay",
+      classType: targetClass,
+      packageTitle,
+    };
+
+    await savePurchase(purchase);
+    await upsertStudent({ email: normEmail, name: studentName, picture: studentPicture });
+
+    const papers = targetClass === "class-6" ? CLASS_6_MOCK_PAPERS : CLASS_9_MOCK_PAPERS;
+
+    return res.json({
+      success: true,
+      verified: true,
+      message: "Payment verified successfully! Your Super 9 Mock Test Series is now unlocked.",
+      paymentId: purchase.paymentId,
+      orderId: purchase.orderId,
+      accessToken,
+      purchase,
+      papers,
+    });
+  } catch (err: any) {
+    console.error("[Razorpay Verify Payment Error]:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while verifying payment.",
+    });
+  }
+};
+
+app.post("/api/verify-payment", handleVerifyRazorpayPayment);
+app.post("/api/payment/verify", handleVerifyRazorpayPayment);
 
 app.post("/api/auth/google", async (req: Request, res: Response) => {
   try {
@@ -991,9 +1169,9 @@ app.get("/api/admin/stats", requireAdmin, async (_req: Request, res: Response) =
           upiPayeeName: UPI_PAYEE_NAME,
           upiQrImage: UPI_QR_IMAGE,
           supportWhatsApp: SUPPORT_WHATSAPP,
-          razorpayDormant: true,
-          razorpayConfigured: false,
-          razorpayTestMode: false,
+          razorpayDormant: PAYMENT_MODE !== "razorpay",
+          razorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+          razorpayTestMode: (process.env.RAZORPAY_KEY_ID || "").startsWith("rzp_test_"),
           googleAuthEnabled: true,
         },
       },

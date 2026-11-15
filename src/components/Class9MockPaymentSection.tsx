@@ -95,26 +95,22 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
 
   const [paymentConfig, setPaymentConfig] = R.useState<{
     paymentMode: string;
-    upiId: string;
-    upiPayeeName: string;
-    upiQrImage: string;
     supportWhatsApp: string;
     supportWhatsAppUrl: string;
     price: number;
     googleClientId: string | null;
+    razorpayKeyId: string | null;
     razorpayConfigured: boolean;
     razorpayDormant: boolean;
   }>({
-    paymentMode: "manual_upi",
-    upiId: "kavinakshara6240@okicici",
-    upiPayeeName: "Kavin Ragav",
-    upiQrImage: "/lovable-uploads/upi-payment-qr.jpg",
+    paymentMode: "razorpay",
     supportWhatsApp: "+91 8940399717",
     supportWhatsAppUrl: "https://wa.me/8940399717",
     price: 99,
     googleClientId: null,
-    razorpayConfigured: false,
-    razorpayDormant: true,
+    razorpayKeyId: (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null,
+    razorpayConfigured: true,
+    razorpayDormant: false,
   });
 
   const [currentUser, setCurrentUser] = R.useState<StudentUser | null>(() => {
@@ -142,16 +138,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
   });
 
   const [isModalOpen, setIsModalOpen] = R.useState(false);
-  const [modalStep, setModalStep] = R.useState<"qr" | "utr">("qr");
   const [isLoading, setIsLoading] = R.useState(false);
   const [errorMessage, setErrorMessage] = R.useState<string | null>(null);
-  const [successSubmissionMessage, setSuccessSubmissionMessage] = R.useState<string | null>(null);
 
   const [loginNameInput, setLoginNameInput] = R.useState("");
   const [loginEmailInput, setLoginEmailInput] = R.useState("");
-
-  const [utrInput, setUtrInput] = R.useState("");
-  const [copiedUpi, setCopiedUpi] = R.useState(false);
 
   const [latestRequest, setLatestRequest] = R.useState<AccessRequestRecord | null>(null);
   const [verifiedPurchase, setVerifiedPurchase] = R.useState<VerificationSuccessData | null>(null);
@@ -221,17 +212,17 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     fetch(buildApiUrl("/api/auth/config"))
       .then((res) => res.json())
       .then((data) => {
+        const envKeyId =
+          (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null;
         setPaymentConfig({
-          paymentMode: data.paymentMode || "manual_upi",
-          upiId: data.upiId || "kavinakshara6240@okicici",
-          upiPayeeName: data.upiPayeeName || "Kavin Ragav",
-          upiQrImage: data.upiQrImage || "/lovable-uploads/upi-payment-qr.jpg",
+          paymentMode: data.paymentMode || "razorpay",
           supportWhatsApp: data.supportWhatsApp || "+91 8940399717",
           supportWhatsAppUrl: data.supportWhatsAppUrl || "https://wa.me/8940399717",
           price: data.price || 99,
           googleClientId: data.googleClientId,
-          razorpayConfigured: data.razorpayConfigured,
-          razorpayDormant: data.razorpayDormant !== false,
+          razorpayKeyId: data.razorpayKeyId || envKeyId,
+          razorpayConfigured: Boolean(data.razorpayConfigured || data.razorpayKeyId || envKeyId),
+          razorpayDormant: false,
         });
       })
       .catch((err) => console.error("Failed to load auth config:", err));
@@ -288,6 +279,163 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
       }
     }
   }, [paymentConfig.googleClientId, isModalOpen, currentUser]);
+
+  const ensureRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window !== "undefined" && window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRazorpayCheckout = async (userOverride?: StudentUser) => {
+    const activeUser = userOverride || currentUser;
+    if (!activeUser) {
+      setErrorMessage("Please sign in with your Google Account first to proceed with payment.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const sdkLoaded = await ensureRazorpayScript();
+      if (!sdkLoaded || !window.Razorpay) {
+        setErrorMessage("Unable to load Razorpay Checkout SDK. Please check your internet connection and try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      const orderRes = await fetch(buildApiUrl("/api/create-order"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: 9900,
+          currency: "INR",
+          receipt: `c9_${Date.now()}`,
+          classType: "class-9",
+          email: activeUser.email,
+          name: activeUser.name,
+        }),
+      });
+
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData.order_id) {
+        setErrorMessage(orderData.message || "Could not create payment order. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      const envKeyId =
+        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null;
+      const keyId = envKeyId || paymentConfig.razorpayKeyId || orderData.key_id;
+
+      if (!keyId) {
+        setErrorMessage("Razorpay Key ID is missing. Please contact support.");
+        setIsLoading(false);
+        return;
+      }
+
+      const options: Record<string, unknown> = {
+        key: keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "Vivekanandha Sainik Coaching Center",
+        description: "Class 9 AISSEE Super 9 Mock Test Series (9 Papers + Solutions)",
+        order_id: orderData.order_id,
+        prefill: {
+          name: activeUser.name,
+          email: activeUser.email,
+        },
+        notes: {
+          classType: "class-9",
+          studentEmail: activeUser.email,
+          studentName: activeUser.name,
+        },
+        theme: {
+          color: "#071328",
+        },
+        modal: {
+          ondismiss: () => {
+            setIsLoading(false);
+            setErrorMessage("Payment was cancelled. You can click Pay ₹99 with Razorpay below whenever you're ready.");
+          },
+        },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          setIsLoading(true);
+          setErrorMessage(null);
+          try {
+            const verifyRes = await fetch(buildApiUrl("/api/verify-payment"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                classType: "class-9",
+                email: activeUser.email,
+                name: activeUser.name,
+                picture: activeUser.picture,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.success) {
+              if (verifyData.accessToken && typeof localStorage !== "undefined") {
+                localStorage.setItem("vcc_c9_access_token", verifyData.accessToken);
+              }
+              setVerifiedPurchase({
+                paymentId: verifyData.paymentId || response.razorpay_payment_id,
+                orderId: verifyData.orderId || response.razorpay_order_id,
+                accessToken: verifyData.accessToken,
+                customer: {
+                  name: activeUser.name,
+                  email: activeUser.email,
+                },
+                package: {
+                  title: "Class 9 AISSEE 9-Mock Test Series & Step-by-Step Solutions",
+                  inauguralPrice: 99,
+                  papersCount: verifyData.papers?.length || 9,
+                  papers: verifyData.papers || [],
+                },
+              });
+              setIsModalOpen(false);
+            } else {
+              setErrorMessage(
+                verifyData.message ||
+                  "Payment signature verification failed. If your amount was debited, please contact WhatsApp support."
+              );
+            }
+          } catch {
+            setErrorMessage("Network error while verifying payment. Please refresh or contact support.");
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (err: { error?: { description?: string } }) => {
+        setIsLoading(false);
+        setErrorMessage(err?.error?.description || "Payment failed. Please try again with another payment method.");
+      });
+      rzp.open();
+    } catch {
+      setErrorMessage("Network error while initializing Razorpay Checkout. Please check your connection.");
+      setIsLoading(false);
+    }
+  };
 
   const handleGoogleAuthCallback = async (response: { credential: string }) => {
     setIsLoading(true);
@@ -396,8 +544,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
             setIsModalOpen(false);
           }
         });
-    } else if (data.accessRequest) {
-      setLatestRequest(data.accessRequest);
+    } else {
+      if (data.accessRequest) {
+        setLatestRequest(data.accessRequest);
+      }
+      handleRazorpayCheckout(data.student);
     }
   };
 
@@ -414,75 +565,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     }
   };
 
-  const handleCopyUpiId = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(paymentConfig.upiId);
-      setCopiedUpi(true);
-      setTimeout(() => setCopiedUpi(false), 2500);
-    }
-  };
-
-  const handleOpenPayNowModal = (initialStep: "qr" | "utr" = "qr") => {
+  const handleOpenPayNowModal = () => {
     setErrorMessage(null);
-    setSuccessSubmissionMessage(null);
-    setModalStep(initialStep);
     setIsModalOpen(true);
-  };
-
-  const handleSubmitAccessRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) {
-      setErrorMessage("Please sign in with Google first to submit your request.");
-      return;
-    }
-
-    const trimmedUtr = utrInput.trim();
-    if (!trimmedUtr || trimmedUtr.length < 6) {
-      setErrorMessage(
-        "Please enter a valid UPI Transaction Reference ID (UTR / 12-digit Ref No) from your payment app."
-      );
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const res = await fetch(buildApiUrl("/api/access-requests/submit"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: currentUser.email,
-          name: currentUser.name,
-          classType: "class-9",
-          utr: trimmedUtr,
-          picture: currentUser.picture,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (data.alreadyApproved && data.accessToken) {
-          localStorage.setItem("vcc_c9_access_token", data.accessToken);
-          window.location.reload();
-          return;
-        }
-
-        setSuccessSubmissionMessage(
-          data.message ||
-            "Your access request has been submitted successfully! Your payment will be verified manually, and you will receive access within one hour. For further queries, contact us on WhatsApp."
-        );
-        if (data.request) {
-          setLatestRequest(data.request);
-        }
-        setUtrInput("");
-      } else {
-        setErrorMessage(data.message || "Failed to submit request. Please try again or reach out on WhatsApp.");
-      }
-    } catch {
-      setErrorMessage("Network error while submitting access request. Please check your connection.");
-    } finally {
-      setIsLoading(false);
+    if (currentUser) {
+      handleRazorpayCheckout(currentUser);
     }
   };
 
@@ -584,7 +671,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
             </span>
             <button
               type="button"
-              onClick={() => handleOpenPayNowModal("qr")}
+              onClick={() => handleOpenPayNowModal()}
               className="font-extrabold underline shrink-0 cursor-pointer"
               style={{ color: "#fbbf24" }}
             >
@@ -829,22 +916,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                     Payment verification pending for Cadet {latestRequest.studentName}
                   </h3>
                   <p className="text-xs leading-relaxed max-w-2xl" style={{ color: "#92400e" }}>
-                    Your access request (UTR: <span className="font-mono font-bold">{latestRequest.utr}</span>) has been
-                    submitted. Your payment will be verified manually and unlocked within one hour.
+                    Your previous access request (UTR: <span className="font-mono font-bold">{latestRequest.utr}</span>)
+                    is pending review, or you can unlock instantly using Razorpay Standard Checkout below.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  <a
-                    href={`https://wa.me/8940399717?text=${encodeURIComponent(
-                      `Hello VCC Team, I submitted an access request for Class 9 AISSEE Mock Papers. Cadet: ${latestRequest.studentName}, Email: ${latestRequest.studentEmail}, UTR: ${latestRequest.utr}. Please verify and grant access.`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-2 px-4 rounded-xl text-xs font-bold shadow transition-colors"
-                    style={{ backgroundColor: "#059669", color: "#ffffff" }}
-                  >
-                    💬 WhatsApp Help
-                  </a>
                   <button
                     onClick={() => checkStudentStatus(latestRequest.studentEmail)}
                     className="py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer"
@@ -852,53 +928,6 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                   >
                     🔄 Refresh Status
                   </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {latestRequest && latestRequest.status === "rejected" && (
-            <div
-              className="rounded-2xl p-4 sm:p-5 shadow-md border-2"
-              style={{ backgroundColor: "#fef2f2", borderColor: "#f87171", color: "#7f1d1d" }}
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <span
-                    className="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full uppercase"
-                    style={{ backgroundColor: "#fecaca", color: "#7f1d1d" }}
-                  >
-                    ❌ Access Request Not Verified
-                  </span>
-                  <h3 className="text-sm font-bold" style={{ color: "#7f1d1d" }}>
-                    Your previous request for UTR <span className="font-mono">{latestRequest.utr}</span> could not be
-                    verified.
-                  </h3>
-                  {latestRequest.reviewNotes && (
-                    <p className="text-xs" style={{ color: "#991b1b" }}>
-                      Admin Note: {latestRequest.reviewNotes}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleOpenPayNowModal("utr")}
-                    className="py-2 px-3 rounded-xl text-xs font-bold cursor-pointer"
-                    style={{ backgroundColor: "#071328", color: "#ffffff" }}
-                  >
-                    Re-submit UTR
-                  </button>
-                  <a
-                    href={`https://wa.me/8940399717?text=${encodeURIComponent(
-                      `Hello VCC Team, my Class 9 access request was rejected for UTR: ${latestRequest.utr}. Please assist.`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-2 px-3 rounded-xl text-xs font-bold"
-                    style={{ backgroundColor: "#dc2626", color: "#ffffff" }}
-                  >
-                    WhatsApp Support
-                  </a>
                 </div>
               </div>
             </div>
@@ -915,10 +944,10 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
             <div className="p-5 sm:p-7 flex flex-col md:flex-row items-center gap-6 lg:gap-8">
               <div className="w-full md:w-64 lg:w-72 shrink-0 flex flex-col items-center">
                 <div
-                  onClick={() => handleOpenPayNowModal("qr")}
+                  onClick={() => handleOpenPayNowModal()}
                   className="bg-white p-2 rounded-xl shadow-lg border cursor-pointer hover:scale-[1.02] transition-transform"
                   style={{ borderColor: "#f59e0b" }}
-                  title="Click to Pay ₹99 & Unlock 9 Mock Papers"
+                  title="Click to Pay ₹99 Securely via Razorpay & Unlock 9 Mock Papers"
                 >
                   <img
                     src="/lovable-uploads/class9-mock-tests-poster.png"
@@ -1010,10 +1039,10 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                     }}
                   >
                     <div className="font-black text-base" style={{ color: "#fbbf24" }}>
-                      180 Days
+                      Instant
                     </div>
                     <div className="text-[11px]" style={{ color: "#e2e8f0" }}>
-                      Cloud Access
+                      Razorpay Unlock
                     </div>
                   </div>
                 </div>
@@ -1039,27 +1068,16 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
 
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                     <button
-                      onClick={() => handleOpenPayNowModal("qr")}
+                      onClick={() => handleOpenPayNowModal()}
+                      disabled={isLoading}
                       className="py-3 px-7 rounded-xl font-black text-sm shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
                       style={{
                         backgroundColor: "#f59e0b",
                         color: "#071328",
                       }}
                     >
-                      <span>⚡ Pay Now — ₹99</span>
+                      <span>{isLoading ? "⏳ Opening Razorpay..." : "⚡ Pay Now — ₹99"}</span>
                       <span>&rarr;</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenPayNowModal("utr")}
-                      className="py-3 px-4 rounded-xl font-bold text-xs border transition-colors cursor-pointer text-center"
-                      style={{
-                        backgroundColor: "rgba(255, 255, 255, 0.08)",
-                        borderColor: "rgba(255, 255, 255, 0.25)",
-                        color: "#f8fafc",
-                      }}
-                    >
-                      Payment Done? Request Access
                     </button>
                   </div>
                 </div>
@@ -1099,7 +1117,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                   <span>
                     Already paid?{" "}
                     <button
-                      onClick={() => handleOpenPayNowModal("qr")}
+                      onClick={() => handleOpenPayNowModal()}
                       className="underline font-bold cursor-pointer"
                       style={{ color: "#fbbf24" }}
                     >
@@ -1154,13 +1172,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                 Class 9 AISSEE &middot; ₹99 Offer
               </span>
               <h3 className="text-xl font-black" style={{ color: "#0f172a" }}>
-                {successSubmissionMessage
-                  ? "Access Request Submitted"
-                  : !currentUser
-                  ? "Sign In with Google to Continue"
-                  : modalStep === "qr"
-                  ? "Scan QR Code to Pay ₹99"
-                  : "Submit UPI Reference ID (UTR)"}
+                {!currentUser ? "Sign In with Google to Continue" : "Pay ₹99 via Razorpay Checkout"}
               </h3>
             </div>
 
@@ -1173,56 +1185,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
               </div>
             )}
 
-            {successSubmissionMessage ? (
-              <div className="space-y-4 py-1">
-                <div
-                  className="p-4 rounded-xl border-2 text-xs leading-relaxed space-y-2"
-                  style={{ backgroundColor: "#ecfdf5", borderColor: "#34d399", color: "#064e3b" }}
-                >
-                  <div className="font-extrabold text-sm flex items-center gap-1.5" style={{ color: "#065f46" }}>
-                    <span>✓</span>
-                    <span>Request Submitted Successfully!</span>
-                  </div>
-                  <p className="font-medium" style={{ color: "#0f172a" }}>
-                    {successSubmissionMessage}
-                  </p>
-                </div>
-
-                <div
-                  className="rounded-xl p-3 border text-xs space-y-1"
-                  style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0", color: "#475569" }}
-                >
-                  <div>
-                    Student: <strong style={{ color: "#0f172a" }}>{currentUser?.name}</strong> (
-                    <span className="font-mono">{currentUser?.email}</span>)
-                  </div>
-                  <div>
-                    Status: <strong style={{ color: "#b45309" }}>Pending Manual Verification (Within 1 Hour)</strong>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                  <a
-                    href={`https://wa.me/8940399717?text=${encodeURIComponent(
-                      `Hello VCC Team, I have submitted my payment request for Class 9 AISSEE 9-Mock Tests. Cadet Name: ${currentUser?.name}, Email: ${currentUser?.email}. Please verify and grant access.`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors"
-                    style={{ backgroundColor: "#059669", color: "#ffffff" }}
-                  >
-                    💬 Contact us on WhatsApp (+91 8940399717)
-                  </a>
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="py-3 px-4 rounded-xl text-xs font-bold cursor-pointer"
-                    style={{ backgroundColor: "#e2e8f0", color: "#1e293b" }}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : !currentUser ? (
+            {!currentUser ? (
               <div className="space-y-4">
                 <div
                   className="rounded-xl p-3.5 border text-xs space-y-1"
@@ -1230,8 +1193,8 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                 >
                   <div className="font-bold">🔒 Step 1: Sign in with your Google Account</div>
                   <p style={{ color: "#334155" }}>
-                    Your 9 mock papers and step-by-step solutions will be permanently bound to your verified Google
-                    email.
+                    Your 9 mock papers and step-by-step solutions will be unlocked immediately after payment and bound
+                    to your verified Google email.
                   </p>
                 </div>
 
@@ -1287,11 +1250,11 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                     <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                       <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
                     </svg>
-                    <span>{isLoading ? "Signing in..." : "Continue with Google Email"}</span>
+                    <span>{isLoading ? "Proceeding to Razorpay..." : "Continue & Pay ₹99"}</span>
                   </button>
                 </form>
               </div>
-            ) : modalStep === "qr" ? (
+            ) : (
               <div className="space-y-4">
                 <div
                   className="rounded-xl p-2.5 border flex items-center justify-between text-xs"
@@ -1319,109 +1282,37 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
                 </div>
 
                 <div
-                  className="p-4 rounded-xl border-2 flex flex-col items-center text-center"
+                  className="p-4 rounded-xl border-2 space-y-2.5"
                   style={{ backgroundColor: "#f8fafc", borderColor: "#cbd5e1" }}
                 >
-                  <div className="text-xs font-extrabold uppercase tracking-wider mb-2" style={{ color: "#071328" }}>
-                    Amount to Pay: <span style={{ color: "#15803d", fontSize: "16px" }}>₹99</span>
-                  </div>
-                  <img
-                    src={paymentConfig.upiQrImage}
-                    alt="Scan UPI QR Code to Pay ₹99"
-                    className="w-48 h-48 object-contain rounded-lg border bg-white p-1.5 shadow-sm"
-                    style={{ borderColor: "#e2e8f0" }}
-                  />
-                  <div className="mt-2 text-xs font-bold" style={{ color: "#334155" }}>
-                    Payee Name: <span style={{ color: "#0f172a" }}>{paymentConfig.upiPayeeName}</span>
-                  </div>
-                  <div className="text-[11px]" style={{ color: "#64748b" }}>
-                    Scan using Google Pay, PhonePe, Paytm, or any UPI App
-                  </div>
-
-                  <div
-                    className="mt-3 w-full rounded-lg p-2 border flex items-center justify-between text-xs"
-                    style={{ backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}
-                  >
-                    <div className="text-left truncate mr-2">
-                      <span className="text-[10px] uppercase font-bold block" style={{ color: "#64748b" }}>
-                        UPI ID
-                      </span>
-                      <span className="font-mono font-bold select-all" style={{ color: "#0f172a" }}>
-                        {paymentConfig.upiId}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyUpiId}
-                      className="py-1.5 px-3 rounded-lg text-[11px] font-bold shrink-0 cursor-pointer"
-                      style={{ backgroundColor: "#071328", color: "#ffffff" }}
-                    >
-                      {copiedUpi ? "✓ Copied" : "Copy UPI ID"}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setModalStep("utr")}
-                  className="w-full py-3.5 px-4 rounded-xl font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  style={{ backgroundColor: "#f59e0b", color: "#071328" }}
-                >
-                  <span>✅ Payment Done? Request Access</span>
-                  <span>&rarr;</span>
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitAccessRequest} className="space-y-4">
-                <div
-                  className="rounded-xl p-2.5 border flex items-center justify-between text-xs"
-                  style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
-                >
-                  <div className="truncate">
-                    <span className="font-bold" style={{ color: "#0f172a" }}>
-                      {currentUser.name}
-                    </span>{" "}
-                    <span className="font-mono text-[11px]" style={{ color: "#475569" }}>
-                      ({currentUser.email})
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider" style={{ color: "#071328" }}>
+                      Class 9 Super 9 Mock Series
+                    </span>
+                    <span className="text-lg font-black" style={{ color: "#15803d" }}>
+                      ₹99
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setModalStep("qr")}
-                    className="text-[11px] font-bold hover:underline shrink-0 ml-2 cursor-pointer"
-                    style={{ color: "#2563eb" }}
-                  >
-                    &larr; View QR Code
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider mb-1.5" style={{ color: "#1e293b" }}>
-                    Enter 12-Digit UPI Reference / UTR Number *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={utrInput}
-                    onChange={(e) => setUtrInput(e.target.value)}
-                    placeholder="e.g. 428917365412"
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono focus:outline-none"
-                    style={{ backgroundColor: "#ffffff", borderColor: "#94a3b8", color: "#0f172a" }}
-                  />
-                  <p className="text-[11px] mt-1" style={{ color: "#64748b" }}>
-                    Find the 12-digit UPI Transaction ID / UTR in your GPay, PhonePe, or Paytm payment receipt.
+                  <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>
+                    Pay securely via <strong>Razorpay Standard Checkout</strong> using UPI (Google Pay, PhonePe, Paytm),
+                    Debit/Credit Cards, or NetBanking. Your 9 full-length Mock Test PDFs &amp; Solutions unlock{" "}
+                    <strong>instantly</strong> after payment verification.
                   </p>
                 </div>
 
                 <button
-                  type="submit"
+                  type="button"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 rounded-xl font-black text-sm shadow-lg transition-all cursor-pointer"
-                  style={{ backgroundColor: "#059669", color: "#ffffff" }}
+                  onClick={() => handleRazorpayCheckout(currentUser)}
+                  className="w-full py-3.5 px-4 rounded-xl font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ backgroundColor: "#f59e0b", color: "#071328" }}
                 >
-                  {isLoading ? "Submitting Request..." : "Submit UTR & Request Access"}
+                  <span>
+                    {isLoading ? "⏳ Opening Razorpay Checkout..." : "💳 Pay ₹99 Securely with Razorpay"}
+                  </span>
+                  <span>&rarr;</span>
                 </button>
-              </form>
+              </div>
             )}
           </div>
         </div>
@@ -1438,7 +1329,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         isFreeSample={activePdfModal?.isFreeSample}
         token={activePdfModal?.token}
         email={activePdfModal?.email}
-        onUnlockSuper9={!verifiedPurchase ? () => handleOpenPayNowModal("qr") : undefined}
+        onUnlockSuper9={!verifiedPurchase ? () => handleOpenPayNowModal() : undefined}
       />
     </div>
   );

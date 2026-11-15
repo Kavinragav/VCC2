@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Pool, QueryResult } from "pg";
 import path from "path";
 import fs from "fs";

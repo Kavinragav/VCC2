@@ -587,7 +587,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                 </div>
                 <div className="flex flex-col gap-1.5 mt-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: "#475569" }}>Manual UPI:</span>
+                    <span style={{ color: "#475569" }}>Razorpay Checkout:</span>
                     <span
                       className="font-bold px-2 py-0.5 rounded text-[11px]"
                       style={{ backgroundColor: "#d1fae5", color: "#065f46" }}
@@ -596,12 +596,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: "#475569" }}>Razorpay:</span>
+                    <span style={{ color: "#475569" }}>Auto-Unlock:</span>
                     <span
                       className="font-bold px-2 py-0.5 rounded text-[11px]"
-                      style={{ backgroundColor: "#e2e8f0", color: "#334155" }}
+                      style={{ backgroundColor: "#dbeafe", color: "#1e40af" }}
                     >
-                      DORMANT
+                      INSTANT HMAC-SHA256
                     </span>
                   </div>
                 </div>
@@ -1523,39 +1523,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                     Payment Mode:
                   </span>
                   <span className="font-mono font-bold" style={{ color: "#059669" }}>
-                    MANUAL UPI (Active)
+                    RAZORPAY STANDARD CHECKOUT (Active)
                   </span>
                 </div>
                 <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: "#e2e8f0" }}>
                   <span className="font-bold" style={{ color: "#334155" }}>
-                    Merchant UPI ID:
+                    Signature Verification:
                   </span>
-                  <span className="font-mono font-bold select-all" style={{ color: "#0f172a" }}>
-                    kavinakshara6240@okicici
+                  <span className="font-mono font-bold" style={{ color: "#0f172a" }}>
+                    HMAC-SHA256 (Order + Payment ID)
                   </span>
                 </div>
                 <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: "#e2e8f0" }}>
                   <span className="font-bold" style={{ color: "#334155" }}>
-                    Payee Name:
+                    Course Unlock Mode:
                   </span>
-                  <span className="font-bold" style={{ color: "#0f172a" }}>
-                    Kavin Ragav
+                  <span className="font-bold" style={{ color: "#059669" }}>
+                    Instant Automated Unlock (180 Days)
                   </span>
                 </div>
-                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: "#e2e8f0" }}>
+                <div className="flex items-center justify-between">
                   <span className="font-bold" style={{ color: "#334155" }}>
                     Support WhatsApp:
                   </span>
                   <span className="font-mono font-bold" style={{ color: "#0f172a" }}>
                     +91 8940399717
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold" style={{ color: "#334155" }}>
-                    Razorpay Gateway:
-                  </span>
-                  <span className="font-bold" style={{ color: "#64748b" }}>
-                    Dormant &middot; Safely Preserved
                   </span>
                 </div>
               </div>
