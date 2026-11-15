@@ -1,4 +1,3 @@
-
 name: Build and Deploy to Hostinger
 
 on:
@@ -29,6 +28,8 @@ jobs:
         run: bun install
 
       - name: Build website
+        env:
+          VITE_RAZORPAY_KEY_ID: rzp_live_U0VlPnOoJjLH41
         run: bun run build
 
       - name: Deploy dist to Hostinger

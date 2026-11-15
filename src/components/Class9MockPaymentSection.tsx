@@ -3,6 +3,7 @@ import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
 import {
   apiFetch,
   buildApiUrl,
+  getActiveRazorpayKeyId,
   safeResponseJson,
   verifyRazorpayPaymentWithFallback,
 } from "../config/api";
@@ -113,7 +114,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     supportWhatsAppUrl: "https://wa.me/8940399717",
     price: 99,
     googleClientId: null,
-    razorpayKeyId: (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null,
+    razorpayKeyId: getActiveRazorpayKeyId(),
     razorpayConfigured: true,
     razorpayDormant: false,
   });
@@ -246,16 +247,15 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
     apiFetch("/api/auth/config")
       .then((res) => safeResponseJson(res))
       .then((data) => {
-        const envKeyId =
-          (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID || null;
+        const activeKeyId = getActiveRazorpayKeyId(data.razorpayKeyId);
         setPaymentConfig({
-          paymentMode: data.paymentMode || "razorpay",
+          paymentMode: "razorpay",
           supportWhatsApp: data.supportWhatsApp || "+91 8940399717",
           supportWhatsAppUrl: data.supportWhatsAppUrl || "https://wa.me/8940399717",
           price: data.price || 99,
           googleClientId: data.googleClientId || null,
-          razorpayKeyId: data.razorpayKeyId || envKeyId,
-          razorpayConfigured: Boolean(data.razorpayConfigured || data.razorpayKeyId || envKeyId),
+          razorpayKeyId: activeKeyId,
+          razorpayConfigured: Boolean(activeKeyId),
           razorpayDormant: false,
         });
       })
@@ -356,10 +356,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         name: activeUser.name,
       };
 
-      const envKeyId =
-        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID ||
-        "rzp_test_U0TyApnugcdw0F";
-      const fallbackKeyId = paymentConfig.razorpayKeyId || envKeyId;
+      const fallbackKeyId = getActiveRazorpayKeyId(paymentConfig.razorpayKeyId);
 
       let orderData: any = null;
       try {
@@ -399,7 +396,7 @@ export const Class9MockPaymentSection: React.FC<Class9MockPaymentSectionProps> =
         }
       }
 
-      const keyId = orderData.key_id || fallbackKeyId;
+      const keyId = getActiveRazorpayKeyId(orderData.key_id || fallbackKeyId);
 
       if (!keyId) {
         setErrorMessage("Razorpay Key ID is missing. Please contact support.");

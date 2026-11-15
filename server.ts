@@ -447,13 +447,35 @@ function resolvePdfPaperKey(rawId: string, typeQuery?: string): string {
 // ==========================================
 // Public & Student API Routes
 // ==========================================
+const DEACTIVATED_RAZORPAY_KEYS = new Set([
+  "rzp_test_U0TyApnugcdw0F",
+  "rzp_test_U0TLhsDVRYMelu",
+  "rzp_test_TsgnKgA5vZtHjE",
+]);
+
+const DEACTIVATED_RAZORPAY_SECRETS = new Set([
+  "3M2qSVe4XDgA8DutKSZy0lkO",
+  "7N9bLmP2qRsTuVwXyZ1aBcDe",
+]);
+
 function resolveRazorpayKeyId(): string {
-  const viteKey = (process.env.VITE_RAZORPAY_KEY_ID || "").trim();
   const srvKey = (process.env.RAZORPAY_KEY_ID || "").trim();
-  if (viteKey && viteKey.startsWith("rzp_")) {
+  const viteKey = (process.env.VITE_RAZORPAY_KEY_ID || "").trim();
+  if (srvKey && srvKey.startsWith("rzp_") && !DEACTIVATED_RAZORPAY_KEYS.has(srvKey)) {
+    return srvKey;
+  }
+  if (viteKey && viteKey.startsWith("rzp_") && !DEACTIVATED_RAZORPAY_KEYS.has(viteKey)) {
     return viteKey;
   }
-  return srvKey || viteKey;
+  return "rzp_live_U0VlPnOoJjLH41";
+}
+
+function resolveRazorpayKeySecret(): string {
+  const srvSecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+  if (srvSecret && !DEACTIVATED_RAZORPAY_SECRETS.has(srvSecret)) {
+    return srvSecret;
+  }
+  return "mr1XhUUv7xBB6WHGipqxKeqp";
 }
 
 app.get("/api/health", (_req: Request, res: Response) => {
@@ -514,7 +536,7 @@ const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
     `rcpt_${classType.replace("-", "")}_${Date.now()}`;
 
   const keyId = resolveRazorpayKeyId();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+  const keySecret = resolveRazorpayKeySecret();
 
   if (!keyId) {
     return res.status(401).json({
@@ -557,7 +579,7 @@ const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
     }
   }
 
-  // Fallback to direct Razorpay Standard Checkout when Key ID is active but Key Secret has not been synced yet
+  // Fallback to direct Razorpay Standard Checkout when Key ID is active
   return res.json({
     success: true,
     order_id: null,
@@ -593,7 +615,7 @@ const handleVerifyRazorpayPayment = async (req: Request, res: Response) => {
       });
     }
 
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+    const keySecret = resolveRazorpayKeySecret();
 
     if (razorpay_order_id || razorpay_signature || !direct_checkout) {
       if (!razorpay_order_id || !razorpay_signature) {

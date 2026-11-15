@@ -31,6 +31,29 @@ export const API_BASE_URL: string = (() => {
   return import.meta.env?.PROD ? "https://vcc2.onrender.com" : "";
 })();
 
+export const ACTIVE_RAZORPAY_KEY_ID = "rzp_live_U0VlPnOoJjLH41";
+
+const DEACTIVATED_RAZORPAY_KEYS = new Set([
+  "rzp_test_U0TyApnugcdw0F",
+  "rzp_test_U0TLhsDVRYMelu",
+  "rzp_test_TsgnKgA5vZtHjE",
+]);
+
+/**
+ * Returns the active Razorpay Key ID, ignoring previously deactivated test keys.
+ */
+export function getActiveRazorpayKeyId(candidate?: string | null): string {
+  const trimmed = (candidate || "").trim();
+  if (trimmed && trimmed.startsWith("rzp_") && !DEACTIVATED_RAZORPAY_KEYS.has(trimmed)) {
+    return trimmed;
+  }
+  const envKey = (import.meta.env?.VITE_RAZORPAY_KEY_ID || "").trim();
+  if (envKey && envKey.startsWith("rzp_") && !DEACTIVATED_RAZORPAY_KEYS.has(envKey)) {
+    return envKey;
+  }
+  return ACTIVE_RAZORPAY_KEY_ID;
+}
+
 export function buildApiUrl(path: string): string {
   if (!path) return path;
   if (/^https?:\/\//i.test(path)) return path;
