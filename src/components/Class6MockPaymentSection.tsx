@@ -1,6 +1,11 @@
 import React from "react";
 import { PdfViewerModal, downloadPdfViaBlob } from "./PdfViewerModal";
-import { apiFetch, buildApiUrl, safeResponseJson } from "../config/api";
+import {
+  apiFetch,
+  buildApiUrl,
+  safeResponseJson,
+  verifyRazorpayPaymentWithFallback,
+} from "../config/api";
 
 declare global {
   interface Window {
@@ -356,41 +361,50 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
         name: activeUser.name,
       };
 
-      let orderRes = await apiFetch("/api/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderPayload),
-      });
+      const envKeyId =
+        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID ||
+        "rzp_test_U0TyApnugcdw0F";
+      const fallbackKeyId = paymentConfig.razorpayKeyId || envKeyId;
 
-      if (orderRes.status === 404) {
-        orderRes = await apiFetch("/api/payment/create-order", {
+      let orderData: any = null;
+      try {
+        let orderRes = await apiFetch("/api/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(orderPayload),
         });
+
+        if (orderRes.status === 404) {
+          orderRes = await apiFetch("/api/payment/create-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderPayload),
+          });
+        }
+
+        orderData = await safeResponseJson(orderRes);
+      } catch {
+        orderData = null;
       }
 
-      let orderData = await safeResponseJson(orderRes);
-      const envKeyId =
-        (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_RAZORPAY_KEY_ID ||
-        "rzp_test_U0TyApnugcdw0F";
-
-      if (orderRes.status === 404 && (paymentConfig.razorpayKeyId || envKeyId)) {
-        orderData = {
-          success: true,
-          order_id: null,
-          direct_checkout: true,
-          amount: 9900,
-          currency: "INR",
-          key_id: paymentConfig.razorpayKeyId || envKeyId,
-        };
-      } else if (!orderRes.ok || (!orderData?.order_id && !orderData?.direct_checkout)) {
-        setErrorMessage(orderData?.message || "Could not create payment order. Please try again.");
-        setIsLoading(false);
-        return;
+      if (!orderData?.order_id && !orderData?.direct_checkout) {
+        if (fallbackKeyId) {
+          orderData = {
+            success: true,
+            order_id: null,
+            direct_checkout: true,
+            amount: 9900,
+            currency: "INR",
+            key_id: fallbackKeyId,
+          };
+        } else {
+          setErrorMessage(orderData?.message || "Could not create payment order. Please try again.");
+          setIsLoading(false);
+          return;
+        }
       }
 
-      const keyId = orderData.key_id || paymentConfig.razorpayKeyId || envKeyId;
+      const keyId = orderData.key_id || fallbackKeyId;
 
       if (!keyId) {
         setErrorMessage("Razorpay Key ID is missing. Please contact support.");
@@ -431,23 +445,18 @@ export const Class6MockPaymentSection: React.FC<Class6MockPaymentSectionProps> =
           setIsLoading(true);
           setErrorMessage(null);
           try {
-            const verifyRes = await apiFetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                direct_checkout: !orderData.order_id,
-                classType: "class-6",
-                email: activeUser.email,
-                name: activeUser.name,
-                picture: activeUser.picture,
-              }),
+            const { ok: verifyOk, data: verifyData } = await verifyRazorpayPaymentWithFallback({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              direct_checkout: !orderData.order_id,
+              classType: "class-6",
+              email: activeUser.email,
+              name: activeUser.name,
+              picture: activeUser.picture,
             });
 
-            const verifyData = await safeResponseJson(verifyRes);
-            if (verifyRes.ok && verifyData?.success) {
+            if (verifyOk && verifyData?.success) {
               if (verifyData.accessToken && typeof localStorage !== "undefined") {
                 localStorage.setItem("vcc_c6_access_token", verifyData.accessToken);
               }
