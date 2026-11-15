@@ -492,6 +492,8 @@ app.get("/api/auth/config", (_req: Request, res: Response) => {
 // ==========================================
 // Razorpay Standard Checkout Endpoints
 // ==========================================
+let mismatchedRazorpayPairCache = "";
+
 const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
   const rawAmount = req.body?.amount !== undefined ? Number(req.body.amount) : 9900;
   if (!Number.isFinite(rawAmount) || rawAmount < 100) {
@@ -521,8 +523,10 @@ const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
     });
   }
 
-  try {
-    if (keySecret) {
+  const currentPairKey = `${keyId}:${keySecret}`;
+
+  if (keySecret && currentPairKey !== mismatchedRazorpayPairCache) {
+    try {
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,
@@ -548,12 +552,9 @@ const handleCreateRazorpayOrder = async (req: Request, res: Response) => {
         receipt: order.receipt,
         key_id: keyId,
       });
+    } catch {
+      mismatchedRazorpayPairCache = currentPairKey;
     }
-  } catch (err: any) {
-    console.warn(
-      "[Razorpay Create Order Warning] Server order creation returned error, falling back to direct Standard Checkout:",
-      err?.error?.description || err?.message
-    );
   }
 
   // Fallback to direct Razorpay Standard Checkout when Key ID is active but Key Secret has not been synced yet
